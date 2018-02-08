@@ -14,7 +14,7 @@ function IEMdepth_anova1wayROI_X2()
 
 subj = {'AI','AP','BB','BC','BD','BJ','BM','BN','BO'};
 VOIs={'V1','V2','V3','V4','V3A','V3B','IPS0','IPS1','IPS2','IPS3','LO1','LO2'};
-vuse=[1:8,11:12];
+vuse=[1:7,11:12];
 
 nSubj=length(subj);
 nVOIs=length(vuse);
@@ -77,7 +77,7 @@ for vv=1:nVOIs
 end
 
 % Create a table storing the respones
-varNames = {'Y1','Y2','Y3','Y4','Y5','Y6','Y7','Y8','Y9','Y10'};
+varNames = {'Y1','Y2','Y3','Y4','Y5','Y6','Y7','Y8','Y9'};
 
 t = array2table(data,'VariableNames',varNames);
 % Create a table reflecting the within subject factors 'TestCond', 'Attention', and 'TMS' and their levels
@@ -86,7 +86,7 @@ factorNames = {'ROI'};
 within = table(VOIs(vuse)','VariableNames',factorNames);
 
 % fit the repeated measures model
-rm = fitrm(t,'Y1-Y10~1','WithinDesign',within);
+rm = fitrm(t,'Y1-Y9~1','WithinDesign',within);
 
 mauchly_tbl = mauchly(rm);
 

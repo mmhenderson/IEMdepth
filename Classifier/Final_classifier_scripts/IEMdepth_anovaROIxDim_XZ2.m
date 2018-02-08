@@ -13,7 +13,7 @@ function IEMdepth_anovaROIxDim_XZ2()
 
 subj = {'AI','AP','BB','BC','BD','BJ','BM','BN','BO'};
 VOIs={'V1','V2','V3','V4','V3A','V3B','IPS0','IPS1','IPS2','IPS3','LO1','LO2'};
-vuse=[1:8,11:12];
+vuse=[1:7,11:12];
 
 nSubj=length(subj);
 nVOIs=length(vuse);
@@ -75,7 +75,7 @@ end
 %% code from John
 
 ii=0;
-data = zeros(nSubj,20);
+data = zeros(nSubj,18);
 for dd=1:2
     for vv=1:nVOIs    
         ii=ii+1;
@@ -85,17 +85,17 @@ end
 
 % Create a table storing the respones
 varNames = {'Y1','Y2','Y3','Y4','Y5','Y6','Y7','Y8','Y9','Y10',...
-    'Y11','Y12','Y13','Y14','Y15','Y16','Y17','Y18','Y19','Y20'};
+    'Y11','Y12','Y13','Y14','Y15','Y16','Y17','Y18',};
 t = array2table(data,'VariableNames',varNames);
 % Create a table reflecting the within subject factors 'TestCond', 'Attention', and 'TMS' and their levels
 factorNames = {'SpaceDim', 'ROI'};
 
-within = table({'X';'X';'X';'X';'X';'X';'X';'X';'X';'X';...
-    'Z';'Z';'Z';'Z';'Z';'Z';'Z';'Z';'Z';'Z'},...
+within = table({'X';'X';'X';'X';'X';'X';'X';'X';'X';...
+    'Z';'Z';'Z';'Z';'Z';'Z';'Z';'Z';'Z'},...
     [VOIs(vuse)';VOIs(vuse)'],'VariableNames',factorNames);
 
 % fit the repeated measures model
-rm = fitrm(t,'Y1-Y20~1','WithinDesign',within);
+rm = fitrm(t,'Y1-Y18~1','WithinDesign',within);
 
 mauchly_tbl = mauchly(rm)
 

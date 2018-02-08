@@ -13,7 +13,7 @@ function IEMdepth_anovaROIxDist_Z6()
 
 subj = {'AI','AP','BB','BC','BD','BJ','BM','BN','BO'};
 VOIs={'V1','V2','V3','V4','V3A','V3B','IPS0','IPS1','IPS2','IPS3','LO1','LO2'};
-vuse=[1:8,11:12];
+vuse=[1:7,11:12];
 
 nSubj=length(subj);
 nVOIs=length(vuse);
@@ -111,7 +111,7 @@ factorNames = {'Disp', 'ROI'};
 within = table(distCells',vCells','VariableNames',factorNames);
 
 % fit the repeated measures model
-rm = fitrm(t,'Y1-Y150~1','WithinDesign',within);
+rm = fitrm(t,'Y1-Y135~1','WithinDesign',within);
 
 % run my repeated measures anova here
 [ranovatbl] = ranova(rm, 'WithinModel','Disp*ROI')
