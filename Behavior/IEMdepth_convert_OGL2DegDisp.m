@@ -6,15 +6,7 @@
 
 clear
 
-close all
-
 root='/usr/local/serenceslab/maggie/IEMdepth/';
-saveFig = 1;
-figFolder='IEMdepth_figs';
-ext='epsc';
-
-makeDegFigs=1;
-makeOGLFigs=1;
 
 %% load some behavioral files to get the exact params
 %load an even and an odd run
@@ -163,128 +155,9 @@ locLimsBackDeg = locLimsBackOGL/oglPerDeg(1);
 stimLocsDeg_odd(:,2) = stimLocsOGL_odd(:,2)./mean(oglPerDeg);
 stimLocsDeg_even(:,2) = stimLocsOGL_even(:,2)./mean(oglPerDeg);
 
-% convert sphere sizes 
-sphereRadDeg = sphereRadsOGL./oglPerDeg;
-
 % sanity check - the height is the same number of degrees everywhere
 screenHeightDeg = screenHeightOGL./oglPerDeg;
 screenHeightDeg = screenHeightDeg(1);
 
-degRange=12.5;
-ylimsOGL = [-2.5,11];
 
-%% Plot the degrees versus disparity relation (negative is far)
-
-figure;hold all;
-scatter(stimLocsDeg_odd(:,1),zLocsArcMin_odd);
-title('DVA vs Disparity - grid 1')
-xlim([-screenHeightDeg/2,screenHeightDeg/2]);
-ylim([-50,50]);
-xlabel('Left-Right axis (degrees)');
-ylabel('Back-Front axis (arcmin)');
-
-figure;hold all;
-scatter(stimLocsDeg_even(:,1),zLocsArcMin_even);
-title('DVA vs Disparity - grid 2')
-xlim([-screenHeightDeg/2,screenHeightDeg/2]);
-ylim([-50,50]);
-xlabel('Left-Right axis (degrees)');
-ylabel('Back-Front axis (arcmin)');
-
-
-%% make figure for the opengl space
-if makeOGLFigs
-    
-figure;hold all;
-
-minz = find(stimLocsOGL_odd(:,2)==-1.5,1);
-viscircles([stimLocsOGL_odd(minz,1),stimLocsOGL_odd(minz,2)],sphereRadsOGL(1))
-maxz = find(stimLocsOGL_odd(:,2)==1.5,1);
-viscircles([stimLocsOGL_odd(maxz,1),stimLocsOGL_odd(maxz,2)],sphereRadsOGL(6))
-
-for ll=1:12;    
-    pt1 = [0,10];
-    pt2 = stimLocsOGL_odd(ll,:);
-    line([pt1(1),pt2(1)],[pt1(2),pt2(2)],'LineStyle',':');
-end
-
-xpts = [-.4,.4];
-ypts = [10,10];
-scatter(xpts,ypts,'k');
-
-pt1 = [.4,10];
-pt2 = [0,0];
-line([pt1(1),pt2(1)],[pt1(2),pt2(2)],'Color','k');
-
-pt1 = [-.4,10];
-pt2 = [0,0];
-line([pt1(1),pt2(1)],[pt1(2),pt2(2)],'Color','k');
-
-
-scatter(stimLocsOGL_odd(:,1),stimLocsOGL_odd(:,2),'.','k');
-xpts = [0];
-ypts = [10];
-scatter(xpts,ypts,'.','k');
-title('OpenGL space - grid 1')
-% xlim([-screenHeightOGL(1)/2,screenHeightOGL(1)/2]);
-ylim(ylimsOGL);
-xlabel(sprintf('Horizontal axis (openGL units)'))
-ylabel(sprintf('Depth axis (openGL units)'))
-axis equal 
-line(get(gca,'XLim'),[0,0],'LineStyle','--')
-scatter(0,0,'x','k')
-
-if saveFig
-    fnFig = [root figFolder filesep 'Grid1_OGL'];
-    fprintf('saving figure to %s...\n',fnFig);
-    saveas(gcf,fnFig,ext);
-end
-
-end
-%%
-
-if makeDegFigs
-
-figure;hold all;
-% subplot(1,2,1)
-scatter(stimLocsDeg_odd(:,1),stimLocsDeg_odd(:,2),'.','k');
-minz = find(stimLocsDeg_odd(:,2)==min(stimLocsDeg_odd(:,2)),1);
-viscircles([stimLocsDeg_odd(minz,1),stimLocsDeg_odd(minz,2)],sphereRadDeg(1))
-maxz = find(stimLocsDeg_odd(:,2)==max(stimLocsDeg_odd(:,2)),1);
-viscircles([stimLocsDeg_odd(maxz,1),stimLocsDeg_odd(maxz,2)],sphereRadDeg(6))
-title('Grid 1')
-xlim([-degRange,degRange]);
-ylim([-degRange,degRange]);
-xlabel(sprintf('Horizontal axis (%c)',char(176)))
-ylabel(sprintf('Depth axis (%c)',char(176)))
-axis square;
-if saveFig
-    fnFig = [root figFolder filesep 'Grid1_deg'];
-    fprintf('saving figure to %s...\n',fnFig);
-    saveas(gcf,fnFig,ext);
-end
-% markersize=1;
-figure;hold all;
-% subplot(1,2,2);
-scatter(stimLocsDeg_even(:,1),stimLocsDeg_even(:,2),'.','k');
-minz = find(stimLocsDeg_even(:,2)==min(stimLocsDeg_even(:,2)),1);
-viscircles([stimLocsDeg_even(minz,1),stimLocsDeg_even(minz,2)],sphereRadDeg(1))
-maxz = find(stimLocsDeg_even(:,2)==max(stimLocsDeg_even(:,2)),1);
-viscircles([stimLocsDeg_even(maxz,1),stimLocsDeg_even(maxz,2)],sphereRadDeg(6))
-title('Grid 2')
-xlim([-degRange,degRange]);
-ylim([-degRange,degRange]);
-xlabel(sprintf('Horizontal axis (%c)',char(176)))
-ylabel(sprintf('Depth axis (%c)',char(176)))
-axis square;
-if saveFig
-    fnFig = [root figFolder filesep 'Grid2_deg'];
-    fprintf('saving figure to %s...\n',fnFig);
-    saveas(gcf,fnFig,ext);
-end
-
-end
-
-
-
-% tilefigs()
+save('IEMdepth_allGridConversions.mat')
