@@ -13,7 +13,7 @@ nSubj = length(subj);
 
 % vuse = 1:nVOIs;
 
-vuse = [1:8,11:12];
+vuse = [1:7,11:12];
 nVOIs=length(vuse);
 
 plotSig=1;
@@ -130,19 +130,19 @@ for vv1=1:nVOIs
         set2 = allslopes(vv2,:)';
 
         p = min([mean(set1<set2),mean(set2<set1)]);
-
+        
         pList = cat(1,pList,p);
         meanList=cat(1,meanList,[mean(allslopes(vv1,:)),mean(allslopes(vv2,:))]);
         vCompList = cat(1,vCompList,[VOIs(vuse(vv1)),VOIs(vuse(vv2))]);              
     end
 end
 
-[~,pListCorr] = fdr(pList,0.01);
+[fdrThreshBetween,pListCorr] = fdr(pList,0.01);
 
 mctable = table(vCompList,meanList,pList,pListCorr);
 
 %% save output
 
 fnTab = [root figFolder filesep 'SlopeInt_dprimeVsDisp_' typestr '_' voxelStr '.mat'];
-save(fnTab,'mctable','outTable','fdrThresh','fdrLabs');
+save(fnTab,'mctable','outTable','fdrThresh','fdrLabs','fdrThreshBetween');
 

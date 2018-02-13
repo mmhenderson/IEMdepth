@@ -1,4 +1,4 @@
-function IEMdepth_anaClassifier_Z6()
+function IEMdepth_anaClassifier_Z6_oneVsOne()
 
 % make table of classifier performance for 6Z one vs one
 
@@ -8,7 +8,7 @@ function IEMdepth_anaClassifier_Z6()
 % close all
 
 subj = {'AI','AP','BB','BC','BD','BJ','BM','BN','BO'};
-vuse=[1:8,11:12];
+vuse=[1:7,11:12];
 VOIs={'V1','V2','V3','V4','V3A','V3B','IPS0','IPS1','IPS2','IPS3','LO1','LO2'};
 for ss=1:length(subj)
     subj{ss} = [subj{ss} '_allROIs'];
