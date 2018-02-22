@@ -14,7 +14,7 @@ function IEMdepth_plotClassifier_Z6_oneVsOne()
 % close all
 
 subj = {'AI','AP','BB','BC','BD','BJ','BM','BN','BO'};
-vuse=[1:8,11:12];
+vuse=[1:7,11:12];
 VOIs={'V1','V2','V3','V4','V3A','V3B','IPS0','IPS1','IPS2','IPS3','LO1','LO2'};
 
 nSubj=length(subj);
@@ -66,11 +66,11 @@ folder='IEMdepth_classif';
 verspacerbig = 0.03;
 markersize = 3;
 
-zDispList = [-35.8,-22.7,-8,8.5,27.2,48.4];
+zDispList = [38.592,25.612,11.124,-5.152,-23.567,-44.573];
 
 posPairList = combnk(1:6,2);
 dispPairList = reshape(zDispList(posPairList(:)),15,2);
-dispDiffList = dispPairList(:,2)-dispPairList(:,1);
+dispDiffList = dispPairList(:,1)-dispPairList(:,2);
 [distListSort,distOrder] = sort(dispDiffList,'ascend');
 
 undist = unique(dispDiffList);

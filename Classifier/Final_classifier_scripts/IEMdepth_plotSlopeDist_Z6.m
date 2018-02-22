@@ -15,7 +15,7 @@ nSubj = length(subj);
 
 % vuse = 1:nVOIs;
 
-vuse = [1:8,11:12];
+vuse = [1:7,11:12];
 nVOIs=length(vuse);
 
 plotSig=1;

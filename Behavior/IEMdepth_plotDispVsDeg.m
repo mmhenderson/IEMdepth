@@ -12,7 +12,7 @@ title('DVA vs Disparity - grid 1')
 xlim([-screenHeightDeg/2,screenHeightDeg/2]);
 ylim([-50,50]);
 xlabel('Left-Right axis (degrees)');
-ylabel('Back-Front axis (arcmin)');
+ylabel('Front-back axis (arcmin)');
 
 
 fnFig = [root figFolder filesep 'Grid1_DispVsDeg'];
@@ -25,7 +25,7 @@ title('DVA vs Disparity - grid 2')
 xlim([-screenHeightDeg/2,screenHeightDeg/2]);
 ylim([-50,50]);
 xlabel('Left-Right axis (degrees)');
-ylabel('Back-Front axis (arcmin)');
+ylabel('Front-back axis (arcmin)');
 
 fnFig = [root figFolder filesep 'Grid2_DispVsDeg'];
 fprintf('saving figure to %s...\n',fnFig);

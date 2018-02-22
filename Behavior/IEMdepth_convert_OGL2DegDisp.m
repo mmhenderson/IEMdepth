@@ -8,6 +8,8 @@ clear
 
 root='/usr/local/serenceslab/maggie/IEMdepth/';
 
+addpath('/mnt/neurocube/local/serenceslab/maggie/mFiles/vy_mFiles')
+
 %% load some behavioral files to get the exact params
 %load an even and an odd run
 fnbehav = '/mnt/neurocube/local/serenceslab/maggie/IEMdepth/BB143/BB143_Behav/BB143_IEMdepth_sess01_run01_task1.mat';
@@ -44,13 +46,13 @@ pixHalfY = screenSizePix(2)/2;
 degHalfY = 25/2;
 % the field of the view is set vertically (y) in degrees, at 25 degrees to
 % each side (50 degrees total)
-pixPerDeg = pixHalfY/degHalfY;
+% pixPerDeg = pixHalfY/degHalfY;
 % approximate the FOV in x:
 degHalfX = degHalfY*screenSizePix(1)/screenSizePix(2);
 
 % screen size and pixel conversion will both change as a function of where
 % we are in depth
-oglPerPix = zeros(6,1);
+% oglPerPix = zeros(6,1);
 screenSizeOGL = zeros(6,2);
 
 % sort these by ascending X, and then ascending Z
@@ -66,13 +68,15 @@ stimLocsOGL_even = stimLocsOGL_even(sortorder,:);
 [~,sortorder] = sort(stimLocsOGL_even(:,2),'ascend');
 stimLocsOGL_even = stimLocsOGL_even(sortorder,:);
 
-% z locations in openGL space, listed back to front
+% z locations in openGL space, listed back (negative) to front (positive)
 zLocsOGL = unique(stimLocsOGL_odd(:,2));
 
 % distance from camera to center (fixation plane)
 zDistFix = pOdd.zloccamera;
-% this is the distance from the camera (viewer) to the point, going back to front  
-zDistOGL = zDistFix - unique(stimLocsOGL_odd(:,2));
+
+% this is the distance from the camera (viewer) to the point, positive 
+% values where small is near and large is far
+zDistOGL = zDistFix - zLocsOGL;
 
 % distance from each eye to the center- hard coded into the script
 eyeToCenterOGL = 0.4;
@@ -81,10 +85,6 @@ eyeToCenterOGL = 0.4;
 % screen an interocular distance
 fixPlaneDeg = 2*rad2deg(atan(eyeToCenterOGL/zDistFix));
 fixPlaneArcMin = fixPlaneDeg*60;
-
-% we will calculate the disparity angle for each stimulus pos
-zLocsArcMin_odd = zeros(size(stimLocsOGL_odd));
-zLocsArcMin_even = zeros(size(stimLocsOGL_even));
 
 % sphere sizes, which scale with distance
 % listed back to front
@@ -107,16 +107,19 @@ zLocsArcMin_even = zeros(size(stimLocsOGL_odd,1),1);
 screenHeightOGL = zeros(size(zDistOGL));
 oglPerDeg = zeros(size(zDistOGL));
 
+dispBins_mean = zeros(size(zDistOGL));
+dispBins_std = zeros(size(zDistOGL));
+
 % loop over z positions, back to front
 for dd=1:length(zDistOGL)
 
-    % convert to opengl units (based on the z distance to the plane, and
+    % convert to degree units (based on the z distance to the plane, and
     % the vertical angle in degrees)
     oglHalfY = (zDistOGL(dd))*tan(deg2rad(degHalfY));
     screenHeightOGL(dd) = oglHalfY*2;
 
      % calculate the conversion units
-    oglPerDeg(dd) = oglHalfY/pixHalfY*pixPerDeg;
+    oglPerDeg(dd) = oglHalfY/degHalfY;
 
     % which indices have these Z positions? same in the even and odd grid
     % matrices
@@ -134,19 +137,25 @@ for dd=1:length(zDistOGL)
     
         % using the actual x,z coordinates - calculate the distance from
         % observer to the point (draw a horopter)
-        actualZDist = sqrt(unX_odd(xx)^2 + zDistOGL(dd)^2);
-        % get the disparity of this (x,z) position
-        zDistDeg = 2*rad2deg(atan(eyeToCenterOGL/actualZDist));
-        zLocsArcMin_odd(theseinds(xx)) = zDistDeg*60 - fixPlaneArcMin;
+%         actualZDist = sqrt(unX_odd(xx)^2 + zDistOGL(dd)^2);
+%         % get the disparity of this (x,z) position
+%         zDistDeg = 2*rad2deg(atan(eyeToCenterOGL/actualZDist));
+        zLocsArcMin_odd(theseinds(xx)) = ogl2disparity([unX_odd(xx),zLocsOGL(dd)]);
 
         % repeat for the even grid
-        actualZDist = sqrt(unX_even(xx)^2 + zDistOGL(dd)^2);
-        % get the disparity of this (x,z) position
-        zDistDeg = 2*rad2deg(atan(eyeToCenterOGL/actualZDist));
-        zLocsArcMin_even(theseinds(xx)) = zDistDeg*60 - fixPlaneArcMin;
+%         actualZDist = sqrt(unX_even(xx)^2 + zDistOGL(dd)^2);
+%         % get the disparity of this (x,z) position
+%         zDistDeg = 2*rad2deg(atan(eyeToCenterOGL/actualZDist));
+        zLocsArcMin_even(theseinds(xx)) = ogl2disparity([unX_even(xx),zLocsOGL(dd)]);
 
     end
+    
+    dispBins_mean(dd) = mean([zLocsArcMin_even(theseinds);zLocsArcMin_odd(theseinds)]);
+    dispBins_std(dd) = std([zLocsArcMin_even(theseinds);zLocsArcMin_odd(theseinds)]);
+    
 end
+
+sphereRadDeg = sphereRadsOGL./oglPerDeg;
 
 locLimsFrontDeg = locLimsFrontOGL/oglPerDeg(6);
 locLimsBackDeg = locLimsBackOGL/oglPerDeg(1);
@@ -159,5 +168,22 @@ stimLocsDeg_even(:,2) = stimLocsOGL_even(:,2)./mean(oglPerDeg);
 screenHeightDeg = screenHeightOGL./oglPerDeg;
 screenHeightDeg = screenHeightDeg(1);
 
+%%
+% mytab = array2table(round([[stimLocsOGL_even;stimLocsOGL_odd],[stimLocsDeg_even(:,1);stimLocsDeg_even(:,1)],[zLocsArcMin_odd;zLocsArcMin_even]],2))
+% mytab.Properties.VariableNames = {'x_OpenGL','z_OpenGL','x_degrees', 'z_disparity_arcmin'}
 
+
+mytab_odd = array2table(round([stimLocsOGL_odd,stimLocsDeg_odd(:,1),zLocsArcMin_odd],2));
+mytab_odd.Properties.VariableNames = {'x_OpenGL','z_OpenGL','x_degrees', 'z_disparity_arcmin'};
+
+mytab_even = array2table(round([stimLocsOGL_even,stimLocsDeg_even(:,1),zLocsArcMin_even],2));
+mytab_even.Properties.VariableNames = {'x_OpenGL','z_OpenGL','x_degrees', 'z_disparity_arcmin'};
+
+mytab_sphere = array2table([zLocsOGL,sphereRadsOGL,oglPerDeg,sphereRadDeg]);
+mytab_sphere.Properties.VariableNames = {'z_OGL','sphere_rad_OGL','oglPerDeg','sphere_rad_Deg'};
+
+mytab_disp = array2table([zLocsOGL,dispBins_mean,dispBins_std]);
+mytab_disp.Properties.VariableNames = {'z_OGL','mean_arcmin','std_arcmin'};
+
+%%
 save('IEMdepth_allGridConversions.mat')

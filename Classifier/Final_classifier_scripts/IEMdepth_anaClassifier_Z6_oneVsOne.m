@@ -46,11 +46,11 @@ nIter=1000;
 
 folder='IEMdepth_classif';
 
-zDispList = [-35.8,-22.7,-8,8.5,27.2,48.4];
+zDispList = [38.592,25.612,11.124,-5.152,-23.567,-44.573];
 
 posPairList = combnk(1:6,2);
 dispPairList = reshape(zDispList(posPairList(:)),15,2);
-dispDiffList = dispPairList(:,2)-dispPairList(:,1);
+dispDiffList = dispPairList(:,1)-dispPairList(:,2);
 [distListSort,distOrder] = sort(dispDiffList,'ascend');
 
 undist = unique(dispDiffList);
