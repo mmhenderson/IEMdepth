@@ -72,6 +72,7 @@ posPairList = combnk(1:6,2);
 dispPairList = reshape(zDispList(posPairList(:)),15,2);
 dispDiffList = dispPairList(:,1)-dispPairList(:,2);
 [distListSort,distOrder] = sort(dispDiffList,'ascend');
+distListSort = round(distListSort,1);
 
 undist = unique(dispDiffList);
 nDist = length(undist);
