@@ -4,6 +4,9 @@
 % these units. Convert them back to units that are interpretable for
 % making figure axes. 
 
+% This script will save out a file IEMdepth_allGridConversions.mat, this
+% file is loaded by a separate script to make figures.
+
 clear
 
 root='/usr/local/serenceslab/maggie/IEMdepth/';
@@ -78,7 +81,7 @@ zDistFix = pOdd.zloccamera;
 % values where small is near and large is far
 zDistOGL = zDistFix - zLocsOGL;
 
-% distance from each eye to the center- hard coded into the script
+% distance from each eye to the center- hard coded into the stimulus presentation script
 eyeToCenterOGL = 0.4;
 
 % calculate the angle of vergence at the fixation plane - using distance to
@@ -168,7 +171,17 @@ stimLocsDeg_even(:,2) = stimLocsOGL_even(:,2)./mean(oglPerDeg);
 screenHeightDeg = screenHeightOGL./oglPerDeg;
 screenHeightDeg = screenHeightDeg(1);
 
-%%
+% figure out what the 15 disparity differences b/w positions are
+zDispList = dispBins_mean;
+posPairList = combnk(1:6,2);
+dispPairList = reshape(zDispList(posPairList(:)),15,2);
+dispDiffList = dispPairList(:,1)-dispPairList(:,2);
+[distListSort,distOrder] = sort(dispDiffList,'ascend');
+distListSort = round(distListSort,1);
+dispPairListSort = dispPairList(distOrder,:);
+isAcrossFix = sign(prod(dispPairListSort,2))==-1;
+%% Make a table of some important values
+
 % mytab = array2table(round([[stimLocsOGL_even;stimLocsOGL_odd],[stimLocsDeg_even(:,1);stimLocsDeg_even(:,1)],[zLocsArcMin_odd;zLocsArcMin_even]],2))
 % mytab.Properties.VariableNames = {'x_OpenGL','z_OpenGL','x_degrees', 'z_disparity_arcmin'}
 
@@ -185,5 +198,10 @@ mytab_sphere.Properties.VariableNames = {'z_OGL','sphere_rad_OGL','oglPerDeg','s
 mytab_disp = array2table([zLocsOGL,dispBins_mean,dispBins_std]);
 mytab_disp.Properties.VariableNames = {'z_OGL','mean_arcmin','std_arcmin'};
 
-%%
+
+mytab_dispcomps = array2table([dispPairListSort,distListSort,isAcrossFix]);
+mytab_dispcomps.Properties.VariableNames = {'fardisp','neardisp','diff','IsAcrossFix'};
+
+%% save my whole workspace
+
 save('IEMdepth_allGridConversions.mat')
