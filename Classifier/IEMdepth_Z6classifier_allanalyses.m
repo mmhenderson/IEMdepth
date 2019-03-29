@@ -4,58 +4,58 @@
 
 % MMH 3/29/19
 
-%% define subjects and flags for what to do
-% close all
+clear
 
+%% set up some path stuff
+% This is whatever directory contains the folder "IEMdepth_classif"
+root = '/usr/local/serenceslab/maggie/IEMdepth/';
+% This is the path where the classifier output files are located.
+load_folder = [root 'IEMdepth_classif'];
+
+% set this to wherever you've put all the code folders (one level up from
+% where this script lives, probably). Might be the same as root, but
+% doesn't have to be. 
+code_folder = '/usr/local/serenceslab/maggie/mFiles/IEMdepth/';
+
+%%
+% set up a list of areas, subjects, etc.
 subj = {'AI','AP','BB','BC','BD','BJ','BM','BN','BO'};
 vuse=[1:7,11:12];
 VOIs={'V1','V2','V3','V4','V3A','V3B','IPS0','IPS1','IPS2','IPS3','LO1','LO2'};
-for ss=1:length(subj)
-    subj{ss} = [subj{ss} '_allROIs'];
-end
 nSubj=length(subj);
 nVOIs=length(vuse);
 
-saveFigs = 1;
-figFolder='IEMdepth_figs';
-ext='epsc';
-
-typestr = 'Z2_oneVsOne';
-
-%parameters for the classifier
+%parameters for the classifier, tell the script the data file to load.
 kernelStr='linear';
-% functStr='svmtrain (-t 0 -q)';
+typestr = 'Z2_oneVsOne';
 classStr='svmtrain';
-% subMeanStr = 'subMean2';
 subMeanStr = 'noSubMean';
-usingA=1;
-predStrs={'predB','predA'};
-predStr=predStrs{usingA+1};
+predStr='predA';
 voxelStr = 'allVox';
-% voxelStr = 'take150ZVox';
 condStrs = {'trainStim','trainFixat'};
 conduse = 2;
 
 sigLevels = [0.05,0.01];
 
-%% set up file info, other params
-
-root='/usr/local/serenceslab/maggie/IEMdepth/';
+% stuff for plotting error and significance markers.
+horspacer=0.147;
+verspacerbig = 0.03;
+verspacersmall = 0.01;
+markersize = 3;
 
 nIter=1000;
 
-folder='IEMdepth_classif';
-
+% list of the average disparities corresponding to each of the 6 z
+% positions.
 zDispList = [38.592,25.612,11.124,-5.152,-23.567,-44.573];
 
+% list of all the pairwise position comparisons
 posPairList = combnk(1:6,2);
 dispPairList = reshape(zDispList(posPairList(:)),15,2);
 dispDiffList = dispPairList(:,1)-dispPairList(:,2);
 [distListSort,distOrder] = sort(dispDiffList,'ascend');
-
 undist = unique(dispDiffList);
 nDist = length(undist);
- 
 
 % preallocate arrays to store acc and d'
 accs_allsub = zeros(nVOIs,nSubj,nDist);
@@ -71,7 +71,6 @@ d_mean_allsub=nan(nVOIs,nSubj);
 dmeanrand_allsub=nan(nVOIs,nSubj,nIter);
 
 % store p vals for significance of decoding 
-
 pValsAcc_mean_allsub=nan(nVOIs,1);
 pValsD_mean_allsub = nan(nVOIs,1);
 
@@ -90,8 +89,8 @@ bigMat = zeros(nSubj,nVOIs,6,6);
 
 for ss=1:nSubj   
     
-    fns=sprintf('%s%s/%s_%s_%s_%s_%s_%s_%s_%s.mat',...
-                    root,folder,subj{ss},typestr,condStrs{conduse},voxelStr,predStr,classStr,kernelStr,subMeanStr);
+    fns=sprintf('%s/%s_allROIs_%s_%s_%s_%s_%s_%s_%s.mat',...
+                    load_folder,subj{ss},typestr,condStrs{conduse},voxelStr,predStr,classStr,kernelStr,subMeanStr);
 
     load(fns);
             
@@ -137,7 +136,10 @@ end
 % export a table of all decoding d' scores that will be loaded by RStudio to
 % perform linear mixed model analysis.
 table_to_save = array2table(X, 'VariableNames',{'dprime','ROI','disparity','subject'});
-writetable(table_to_save,'dprime_classifier_tbl_CORRECTED.txt')
+if ~isfolder([code_folder 'MixedModels'])
+    mkdir([code_folder 'MixedModels']);
+end
+writetable(table_to_save,[code_folder 'MixedModels/dprime_classifier_tbl.txt']);
 %% compute p vals for each ROI, each cond separately 
 
 for vv=1:nVOIs
@@ -200,9 +202,7 @@ for aa=1:length(sigLevels)
 end
 
 %% make plots of mean pairwise Z decoding (Figure 2B)
-     
-%NOTE - brackets for pairwise comparisons between these bars were added
-%manually in illustrator, calculations for those comparisons are below.
+
 figure;hold all;
 ylabel('d-prime');
 barMeans=nanmean(squeeze(d_allsub(:,:)),2);
@@ -222,10 +222,6 @@ set(gca, 'XTick', 1:nVOIs, ...
 
 ylim([-0.1,0.5]);
 
-horspacer=0.147;
-verspacerbig = 0.03;
-verspacersmall = 0.01;
-markersize = 3;
 
 astLocsEach=nan(nVOIs,2);
 for vv=1:nVOIs
@@ -243,12 +239,6 @@ end
 
 plot((1:nVOIs),astLocsEach(:,1),'o','Color','k','MarkerSize',markersize)
 plot((1:nVOIs),astLocsEach(:,2),'o','Color','k','MarkerFaceColor','k','MarkerSize',markersize)
-
-if saveFigs
-    fnFig = [root figFolder filesep 'Dprime_allsubs_' typestr '_mean_' voxelStr];        
-    fprintf('saving figure to %s...\n',fnFig);
-    saveas(gcf,fnFig,ext);
-end
            
 %% Performing a one-way RM anova on the table of mean d' scores (not significant)
 
@@ -258,7 +248,7 @@ adat = d_mean_allsub';
 % Create a table storing the respones
 varNames = {'Y1','Y2','Y3','Y4','Y5','Y6','Y7','Y8','Y9'};
 % create a table of all levels
-t = array2table(data,'VariableNames',varNames);
+t = array2table(adat,'VariableNames',varNames);
 factorNames = {'ROI'};
 within = table(VOIs(vuse)','VariableNames',factorNames);
 
@@ -279,71 +269,76 @@ mctable = multcompare(rm,'ROI');
 posDiffs = mctable{:,3}>0 & mctable{:,5}<alpha;
 sigDiffs = mctable{posDiffs,[1,2]};
 
-%% get bootstrapped dist of d' for each position and ROI
+%% get bootstrapped dist of d' for each ROI - averaging within position first.
 
-rs = 8754499;
+rs = 43456589;
 rng(rs);
 
-nPos = numel(unique(X(:,4)));
+nPos = numel(unique(X(:,3)));
 nIter = 1000;
-bootPerf = nan(length(vuse), nPos, nIter);
+% have to define sorder outside the parfot loop, otherwise the exact result
+% won't be reproducible because the parallelism will be different each
+% time.
+sorder = randsample(1:nSubj, nIter*length(subj), 1);
+sorder = reshape(sorder, [nIter, nSubj]);
+
+bootPerf = nan(length(vuse), nIter);
 parfor ii=1:nIter
-    thisorder = datasample(1:nSubj, nSubj, 'Replace',true);
-    smallmat = nan(length(vuse), nPos);
+    thisorder = sorder(ii,:);
+    smallmat = nan(length(vuse), 1);
     for vv=1:length(vuse)
-       for pp=1:nPos 
+       mean_over_position = d_mean_allsub(vv,:);          
+       smallmat(vv) = mean(mean_over_position(thisorder));
 
-           dat = X(ismember(X(:,[2,4]), [vv,pp],'rows'), 1);
-           % dat is [9 x 1] = this is the individual subj decoding acc for this
-           % ROI and position.
-           smallmat(vv,pp) = mean(dat(thisorder));
-
-       end
     end
-    bootPerf(:,:,ii) = smallmat;
+    bootPerf(:,ii) = smallmat;
 
 end
 
-%% summary stats on these bootstrapped dist
+%% make a plot of these distributions
 
-bootPerf_mean = zeros(length(vuse),1);
-bootPerf_ci = zeros(length(vuse), 2);
-
-for vv=1:length(vuse)
-
-    mean_over_position = mean(squeeze(bootPerf(vv,:,:)),1);
-    bootPerf_mean(vv) = mean(mean_over_position);
-    bootPerf_ci(vv,:) = prctile(mean_over_position,[2.5,97.5]);    
-end
-
+figure;hold all;
+% h(1) = subplot(2,2,1);
+violinplot(squeeze(bootPerf)',VOIs,...
+    'ShowData',false,'ShowMean',false,'ViolinColor',[0.8,0.8,0.8]);
+title('Mean pairwise Z decoding, bootstrapped distributions');
 %% use the bootstrapped distributions to perform a non-parametric t-test.
 
-pairedVOIs = combnk(1:nv,2);
+pairedVOIs = combnk(1:nVOIs,2);
 boot_ttest_perf = nan(size(pairedVOIs,1), 1);
 boot_means = nan(size(pairedVOIs,1), 2);
 boot_diffs = nan(size(pairedVOIs,1), 1);
+boot_diff_cis = nan(size(pairedVOIs,1), 2);
 for vi = 1:size(pairedVOIs,1)
 
-    s1 = mean(squeeze(bootPerf(pairedVOIs(vi,1), :,:)),1);
-    s2 = mean(squeeze(bootPerf(pairedVOIs(vi,2), :,:)),1);
+    s1 = squeeze(bootPerf(pairedVOIs(vi,1), :));
+    s2 = squeeze(bootPerf(pairedVOIs(vi,2), :));
     all_diffs = s1 - s2;
     boot_means(vi,:) = [mean(s1), mean(s2)];
     boot_diffs(vi,:) = mean(all_diffs);
+    boot_diff_cis(vi,:) = prctile(all_diffs, [2.5, 97.5]);
     boot_ttest_perf(vi) = 2*(min([mean(all_diffs < 0), ...
         mean(all_diffs > 0)]));
 
 end
 
-[~,fdr_mask] = fdr(boot_ttest_perf, 0.05);
+[~,fdr_mask] = fdr(boot_ttest_perf, 0.01);
 
 diffz = find(fdr_mask);
 fprintf('average Z decoding is significantly different in %s & %s\n', ...
     VOIs{vuse(pairedVOIs(diffz,:)')});
 
+vtab = cell2table(VOIs(vuse(pairedVOIs(diffz,:))), 'VariableNames',{'ROI1','ROI2'});
+difftab = [vtab, table(boot_means(diffz,1),boot_means(diffz,2), ...
+    boot_diffs(diffz), ...
+    boot_diff_cis(diffz,1), boot_diff_cis(diffz,2),...
+    boot_ttest_perf(diffz),'VariableNames',...
+    {'mean1','mean2','diff','cidifflow','cidiffhigh','p'}) ]
+
 
 %% fit slopes/intercepts to the d'/disparity diff relationship
 
-rndseed = [879642];
+rndseed = 879642;
 rng(rndseed,'twister');
 
 nIter = 1000;
@@ -351,8 +346,11 @@ allslopes = zeros(nVOIs,nIter);
 allint = zeros(nVOIs,nIter);
 allslopes_zeroint = zeros(nVOIs,nIter);
 
+sorder = randsample(1:nSubj, nIter*length(subj), 1);
+sorder = reshape(sorder, [nIter, nSubj]);
+
 for ii=1:nIter    
-    randorder = datasample(1:nSubj,nSubj,'Replace',true);
+    randorder = sorder(ii,:);
     for vv=1:nVOIs
         
         dprime_bydist = mean(squeeze(d_allsub(vv,randorder,:)),1)';        
@@ -437,14 +435,6 @@ for vv=1:nVOIs
 
     uistack(h1,'top')
 
-end
-
-if saveFigs
-    set(gcf,'Position',get(0,'ScreenSize'))
-    set(gcf,'Color','w')
-    fnFig = [root figFolder filesep 'Dprime_2Z_oneVsOne_byDisp_wLine_' voxelStr];
-    fprintf('saving figure to %s...\n',fnFig);
-    saveas(gcf,fnFig,ext);
 end
 
 %% Make a plot of slope distribution (Figure 3B)
@@ -579,7 +569,3 @@ for vv=1:nVOIs
 end
 
 match_clim(ax);
-
-fnFig = [root figFolder filesep 'RSA_6Z_oneVsOne'];      
-fprintf('saving figure to %s...\n',fnFig);
-print(fnFig,'-depsc','-r0')

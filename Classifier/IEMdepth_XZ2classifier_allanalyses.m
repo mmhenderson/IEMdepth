@@ -4,46 +4,38 @@
 
 % MMH 3/29/19
 
-%% define subjects and flags for what to do
-
 clear
 
-subj = {'AI','AP','BB','BC','BD','BJ','BO','BN','BM
+%% set up some path stuff
+% This is whatever directory contains the folder "IEMdepth_classif"
+root = '/usr/local/serenceslab/maggie/IEMdepth/';
+% This is the path where the classifier output files are located.
+load_folder = [root 'IEMdepth_classif'];
+
+%%
+% set up a list of areas, subjects, etc.
+subj = {'AI','AP','BB','BC','BD','BJ','BM','BN','BO'};
+vuse=[1:7,11:12];
+VOIs={'V1','V2','V3','V4','V3A','V3B','IPS0','IPS1','IPS2','IPS3','LO1','LO2'};
 nSubj=length(subj);
-
-VOIs = {'V1','V2','V3','V4','V3A','V3B','IPS0','IPS1','IPS2','IPS3','LO1','LO2'};
-
-vuse = [1:7,11:12];
 nVOIs=length(vuse);
 
-saveFigs = 1;
-figFolder='IEMdepth_figs';
-ext = 'epsc';
-
-% numVoxUse=150;
-% voxelStr=sprintf('take%dZVox',numVoxUse);
-voxelStr = 'allVox';
-classStr = 'svmtrain';
+%parameters for the classifier, tell the script the data file to load.
 kernelStr='linear';
-predStr = 'predA';
+typestr = 'XZ2_singleTrialPreds';
+classStr='svmtrain';
 subMeanStr = 'noSubMean';
+predStr='predA';
+voxelStr = 'allVox';
+condStrs = {'trainStim','trainFixat'};
+conduse = 2;
 
 dimStrs = {'X position','Z position'};
 nDim= length(dimStrs);
 
-condStrs = {'trainStim','trainFixat'};
-conduse = 2;
-
 nIter=1000;
 
-%% set up file info, other params
-
-root='/usr/local/serenceslab/maggie/IEMdepth/';
-folder='IEMdepth_classif';
-
 sigLevels=[0.05,0.01];
-
-typestr = 'XZ2_singleTrialPreds';
 
 % arrays to store acc and d' 
 accs_allsub=nan(nVOIs,nSubj,nDim);
@@ -58,8 +50,8 @@ pValsD_allsub = nan(nVOIs,nDim);
 %% loop over subs
 for ss=1:nSubj   
         
-    fns=sprintf('%s%s/%s_allROIs_%s_%s_%s_%s_%s_%s_%s.mat',...
-                    root,folder,subj{ss},typestr,condStrs{conduse},voxelStr,predStr,classStr,kernelStr,subMeanStr);
+    fns=sprintf('%s/%s_allROIs_%s_%s_%s_%s_%s_%s_%s.mat',...
+                    load_folder,subj{ss},typestr,condStrs{conduse},voxelStr,predStr,classStr,kernelStr,subMeanStr);
     load(fns);
 
     for vv=1:length(vuse)
@@ -85,7 +77,7 @@ end
 for vv=1:nVOIs
     for cc=1:nDim
 
-        %% all trials
+        %all trials
         realAccs = squeeze(accs_allsub(vv,:,cc));
         nullAccs = squeeze(accsrand_allsub(vv,:,cc,:));
 
@@ -211,11 +203,4 @@ plot((1:nVOIs)-horspacer,astLocsEach(:,1,1),'o','Color','k','MarkerSize',markers
 plot((1:nVOIs)-horspacer,astLocsEach(:,1,2),'o','Color','k','MarkerFaceColor','k','MarkerSize',markersize)
 plot((1:nVOIs)+horspacer,astLocsEach(:,2,1),'o','Color','k','MarkerSize',markersize)
 plot((1:nVOIs)+horspacer,astLocsEach(:,2,2),'o','Color','k','MarkerFaceColor','k','MarkerSize',markersize)
-
-if saveFigs
-    fnFig = [root figFolder filesep 'Dprime_allsubs_' typestr '_' voxelStr];
-
-    fprintf('saving figure to %s...\n',fnFig);
-    saveas(gcf,fnFig,ext);
-end
        
