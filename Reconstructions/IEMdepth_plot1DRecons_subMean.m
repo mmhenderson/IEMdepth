@@ -8,7 +8,10 @@ elseif nargin == 1
     plotVOIs = {'V1','V2','V3','V4','V3A','V3B','IPS0','LO1','LO2'};
 end
 %%
+% This is the directory where the folders "IEMdepth_trialData" and
+% "IEMdepth_chanResp" are located.
 root = '/usr/local/serenceslab/maggie/IEMdepth/';
+
 dimlabels = {'X','Z'};
 
 sessi = 2;

@@ -11,6 +11,8 @@ elseif nargin == 1
 end
 
 %%
+% This is the directory where the folders "IEMdepth_trialData" and
+% "IEMdepth_chanResp" are located.
 root = '/usr/local/serenceslab/maggie/IEMdepth/';
 
 sessi = 1;

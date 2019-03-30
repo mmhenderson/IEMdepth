@@ -21,6 +21,8 @@ end
 subj = {'AI','AP','BB','BC','BD','BJ','BM','BN','BO'};
 VOIs = {'V1','V2','V3','V4','V3A','V3B','IPS0','LO1','LO2'};
 
+% This is the directory where the folders "IEMdepth_trialData" and
+% "IEMdepth_chanResp" are located.
 root = '/usr/local/serenceslab/maggie/IEMdepth/';
 
 sessStrs = {'_allGoodRuns','_allSess'};
