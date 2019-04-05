@@ -335,6 +335,40 @@ difftab = [vtab, table(boot_means(diffz,1),boot_means(diffz,2), ...
     boot_ttest_perf(diffz),'VariableNames',...
     {'mean1','mean2','diff','cidifflow','cidiffhigh','p'}) ]
 
+%% do all the pairwise comparisons with a parametric paired t-test.
+
+pairedVOIs = combnk(1:nVOIs,2);
+ttest_t = nan(size(pairedVOIs,1), 1);
+ttest_p = nan(size(pairedVOIs,1), 1);
+pair_means = nan(size(VOIs,1), 2);
+
+for vi = 1:size(pairedVOIs,1)
+
+    s1 = squeeze(d_allsub(pairedVOIs(vi,1),:,:));
+%     s1 = s1(:);
+    s2 = squeeze(d_allsub(pairedVOIs(vi,2),:,:));
+
+    
+    
+    [h,p,ci,stats] = ttest(mean(s1,2),mean(s2,2));
+    pair_means(vi,:) = [mean(s1(:)), mean(s2(:))];
+    ttest_t(vi) = stats.tstat;
+    ttest_p(vi) = p;
+
+end
+
+[~,fdr_mask] = fdr(ttest_p, 0.01);
+
+diffz = find(fdr_mask);
+fprintf('average Z decoding is significantly different in %s & %s\n', ...
+    VOIs{vuse(pairedVOIs(diffz,:)')});
+
+vtab = cell2table(VOIs(vuse(pairedVOIs(diffz,:))), 'VariableNames',{'ROI1','ROI2'});
+difftab = [vtab, table(pair_means(diffz,1),pair_means(diffz,2), ...
+    ttest_t(diffz),...
+    ttest_p(diffz),'VariableNames',...
+    {'mean1','mean2','t','p'}) ]
+
 
 %% fit slopes/intercepts to the d'/disparity diff relationship
 
