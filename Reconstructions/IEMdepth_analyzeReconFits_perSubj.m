@@ -97,23 +97,31 @@ ranovaxz = ranova(rmxz, 'WithinModel','SpaceDim*ROI')
 
 %% Export a table for loading by RStudio
 
-% To make the ANOVA table that will be exported, make a column for the subject
-dp = table([1:ns]','VariableNames',{'Subj'});
-% Now make a column for each repeated measure (i.e. ROI)
-ii = 1;
-for pp = 1:nrec
+X = [];
+ix = 0;
+for ss = 1:ns
     for vv = 1:nv
-        tmp = squeeze(fitErr(vv,:,2,pp))';
-        dp = [dp, table(reshape(tmp,[],1),'VariableNames',{sprintf('Y%d',ii)})];
-        ii = ii + 1;
-        clear tmp
+        for pp = 1:nrec
+            
+            thiserr = fitErr(vv,ss,2,pp);
+            ix = ix+1;
+            X(ix,:) = [thiserr, vv, pp,ss];
+            
+        end
     end
 end
 
-within = table(reshape(repmat({'1','2','3','4','5','6'},nv,1),[],1),...
-    reshape(repmat(VOIs',1,nrec),[],1),'VariableNames',{'Position', 'ROI'});
+table_to_save = array2table(X, 'VariableNames',{'err','ROI','position','subject'});
+if ~isfolder([code_folder 'MixedModels'])
+    mkdir([code_folder 'MixedModels']);
+end
+writetable(table_to_save,[code_folder 'MixedModels/recon_err_tbl.txt']);
 
-writetable(within,[code_folder 'MixedModels/fitErr2way.csv']);
+
+% tab2save = table(reshape(repmat({'1','2','3','4','5','6'},nv,1),[],1),...
+%     reshape(repmat(VOIs',1,nrehinc),[],1),'VariableNames',{'err','ROI','position', 'subject'});
+% 
+% writetable(table_to_save,[code_folder 'MixedModels/recon_err_tbl.txt']);
 
 %% 1-way ANOVA on fit error
 % VAV 12/20/2018
