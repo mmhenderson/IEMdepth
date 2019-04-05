@@ -244,28 +244,61 @@ end
 
 legend(subj,'Location','EastOutside');
 
+%% plot subject accuracy on fixation task only.
+
+ax = figure;hold all;
+
+cm = plasma(10);
+
+% title(sprintf('Accuracy'));
+
+vals = zeros(length(subj),1);
+
+for su = 1:length(subj)
+    
+%     group1 = allaccs(runlist(:,2)==1 & runlist(:,1)==su);
+    group2 = allaccs(runlist(:,2)==2 & runlist(:,1)==su)./100;
+
+    vals(su) = mean(group2);
+    
+    scatter(1:2,[mean(group2), mean(group2)],[],cm(su,:),'filled');
+    set(gca, 'XLim',[0.5,2.5],'XTick', 1, 'YLim',[0.5,1],...
+                    'XTickLabel', expPrefix{2},'XTickLabelRotation',90);
+%     alpha(0.25);
+
+end
+
+errorbar(1,mean(vals),std(vals)/sqrt(length(subj)),'Color','k','LineWidth',2);
+ylabel('Proportion Accuracy')
+legend(subj,'Location','EastOutside');
+
+saveas(gcf,'BehavFixTaskAvg','epsc')
+
 %% Fixation task only: plot the accuracy as a function of depth position.
 
-figure;hold all;
+ax = figure;hold all;
+
+cm = plasma(10);
 
 pct_each = n_each./repmat(sum(n_each,3),1,1,3);
 
 for ss=1:nSubj
-   plot(1:6, squeeze(pct_each(ss,:,1))); 
+   plot(1:6, squeeze(pct_each(ss,:,1)),'Color',[cm(ss,:),0.25],'LineWidth',2);hold on
+%    alpha(gca,0.25)
 end
 
 meanvals = mean(pct_each(:,:,1),1);
 semvals = std(pct_each(:,:,1),[],1)./sqrt(nSubj-1);
 errorbar(1:6, meanvals,semvals,'Color','k','LineWidth',2)
-title('Percent correct (+/- SEM)')
+% title('Percent correct (+/- SEM)')
 % legend({'Correct','Incorrect','No Response'},'Location','EastOutside')
 set(gca, 'XTick',1:6, 'XTickLabels',unpos)
-xlabel('Depth Position')
-ylabel('Accuracy')
+xlabel('Disparity (arcmin)')
+ylabel('Proportion Accuracy')
 xlim([0,7])
 ylim([.50,1])
 
-% saveas(gcf,'BehavByDepthPos','epsc')
+saveas(gcf,'BehavByDepthPos','epsc')
 
 %% Fixation task only: RM anova with factor of depth position
 ii=0;
