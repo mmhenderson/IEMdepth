@@ -1,0 +1,49 @@
+#setwd("D:R_scripts")
+library(lme4)
+library(tidyverse)
+require(sjPlot)
+library(lsmeans)
+
+# read in my data
+fn2 = "/mnt/neurocube/local/serenceslab/maggie/mFiles/IEMdepth/MixedModels/recon_base_tbl.txt"
+fdat = read_csv(fn2)
+
+# label the ROIs
+fdat$ROI[fdat$ROI == 1] <- 'V1'
+fdat$ROI[fdat$ROI == 2] <- 'V2'
+fdat$ROI[fdat$ROI == 3] <- 'V3'
+fdat$ROI[fdat$ROI == 4] <- 'V4'
+fdat$ROI[fdat$ROI == 5] <- 'V3A'
+fdat$ROI[fdat$ROI == 6] <- 'V3B'
+fdat$ROI[fdat$ROI == 7] <- 'IPS0'
+fdat$ROI[fdat$ROI == 8] <- 'LO1'
+fdat$ROI[fdat$ROI == 9] <- 'LO2'
+
+# make the subject variable categorical
+fdat$ROI <- factor(fdat$ROI)
+fdat$subject <- factor(fdat$subject)
+fdat$position = factor(fdat$position)
+
+
+fm0 = lmer(base~1+ (1|subject), data=fdat, REML=FALSE)
+fm1 = lmer(base~position + (1|subject), data=fdat, REML=FALSE)
+fm2 = lmer(base~position + (1|subject) + (1|position:subject),  data=fdat, REML=FALSE)
+fm3 = lmer(base~position + ROI + (1|subject) + (1|position:subject),  data=fdat, REML=FALSE)
+fm4 = lmer(base~position + ROI + (1|subject) + (1|position:subject) + (1|ROI:subject), data=fdat, REML=FALSE)
+fm5 = lmer(base~position*ROI + (1|subject)+ (1|position:subject) + (1|ROI:subject), data=fdat, REML=FALSE)
+with(fm1@optinfo$derivs,max(abs(solve(Hessian,gradient)))<2e-3)
+with(fm2@optinfo$derivs,max(abs(solve(Hessian,gradient)))<2e-3)
+with(fm3@optinfo$derivs,max(abs(solve(Hessian,gradient)))<2e-3)
+with(fm4@optinfo$derivs,max(abs(solve(Hessian,gradient)))<2e-3)
+with(fm5@optinfo$derivs,max(abs(solve(Hessian,gradient)))<2e-3)
+
+anova(fm0,fm1,fm2,fm3,fm4,fm5)
+
+# pairwise comparisons bw all ROIs. this is doing a bunch of paired t-tests 
+#(after averaging across position), and then correcting with the Tukey method.
+lsmeans(fm5, pairwise~ROI, adjust='tukey')
+lsmeans(fm5, pairwise~position, adjust='tukey')
+
+# comparing results with a RM anova
+summary(aov(base~position*ROI + Error(1/(subject*position*ROI)), data=fdat))
+TukeyHSD(aov(base~position*ROI + Error(1/(subject*position*ROI)), data=fdat))

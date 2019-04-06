@@ -95,11 +95,10 @@ mauchly_xz = mauchly(rmxz)
 % run my repeated measures anova here
 ranovaxz = ranova(rmxz, 'WithinModel','SpaceDim*ROI')
 
-%% Export a table for loading by RStudio
+%% Export a table of each param for loading by RStudio
 
-X = [];
+X_err = [];X_amp = []; X_size = []; X_base = [];
 ix = 0;
-
     
 for pp = 1:nrec
     for vv = 1:nv
@@ -107,17 +106,49 @@ for pp = 1:nrec
             
             thiserr = fitErr(vv,ss,2,pp);
             ix = ix+1;
-            X(ix,:) = [thiserr, vv, pp,ss];
+            X_err(ix,:) = [thiserr, vv, pp,ss];            
+            
+              % allFits is nROI x nSubs x nDim x nLocs x nParams
+            thisamp= allFits(vv,ss,2,pp,3);
+            ix = ix+1;
+            X_amp(ix,:) = [thisamp, vv, pp,ss];
+            
+            thissize= allFits(vv,ss,2,pp,2);
+            ix = ix+1;
+            X_size(ix,:) = [thissize, vv, pp,ss];
+            
+             % allFits is nROI x nSubs x nDim x nLocs x nParams
+            thissize= allFits(vv,ss,2,pp,4);
+            ix = ix+1;
+            X_base(ix,:) = [thissize, vv, pp,ss];
             
         end
     end
 end
 
-table_to_save = array2table(X, 'VariableNames',{'err','ROI','position','subject'});
+table_to_save = array2table(X_err, 'VariableNames',{'err','ROI','position','subject'});
 if ~isfolder([code_folder 'MixedModels'])
     mkdir([code_folder 'MixedModels']);
 end
 writetable(table_to_save,[code_folder 'MixedModels/recon_err_tbl.txt']);
+
+table_to_save = array2table(X_amp, 'VariableNames',{'amp','ROI','position','subject'});
+if ~isfolder([code_folder 'MixedModels'])
+    mkdir([code_folder 'MixedModels']);
+end
+writetable(table_to_save,[code_folder 'MixedModels/recon_amp_tbl.txt']);
+
+table_to_save = array2table(X_size, 'VariableNames',{'size','ROI','position','subject'});
+if ~isfolder([code_folder 'MixedModels'])
+    mkdir([code_folder 'MixedModels']);
+end
+writetable(table_to_save,[code_folder 'MixedModels/recon_size_tbl.txt']);
+
+table_to_save = array2table(X_base, 'VariableNames',{'base','ROI','position','subject'});
+if ~isfolder([code_folder 'MixedModels'])
+    mkdir([code_folder 'MixedModels']);
+end
+writetable(table_to_save,[code_folder 'MixedModels/recon_base_tbl.txt']);
 
 
 %% 1-way ANOVA on fit error
@@ -389,6 +420,7 @@ for dd = 1:2 % ndim
 end
 
 prepFigForExport;
+
 % outfn = sprintf('%sfigs%sRecon1D_IEMErr_singleSubFits.eps', root, filesep);
 % fprintf('Saving file...');
 % print(gcf, '-depsc','-painters',outfn);
@@ -533,6 +565,35 @@ end
 
 ciPar = prctile(iterPar,[2.5,97.5]);
 
+%% PLOT AMPLITUDE ERROR BARS AND INDIV SUBS
+cm = plasma(10);
+
+figure;
+for dd = 1:2 % ndim
+    subplot(1,2,dd);
+%     squeeze(coefStimLocs(:,dd,1,:))    
+    % squeeze(meanCoefStimLocs(dd,:,vv))'
+    
+    tmp = squeeze(allFits(:,:,dd,:,3));
+    % plot single subj data
+    for ss = 1:ns
+        dat = mean(squeeze(tmp(:,ss,:)),2);
+        ht = scatter(1:nv, dat, [], cm(ss,:), 'filled'); hold on;
+        alpha(0.25);
+    end
+    
+	sdat = squeeze(mean(iterPar(:,dd,:,vv,2)));
+    cidat = abs(squeeze(ciPar(:,dd,:,vv,2)) - sdat');
+    m = squeeze(mean(itererr,2));
+    ci = (prctile(itererr,[2.5,97.5],2) - m)';
+    he = errorbar(1:nv, m, ci(1,:), ci(2,:),'-o');
+    he.Color = [0.25 0.25 0.25]; he.LineWidth = 1.5;
+    he.LineStyle = 'none';
+    he.Parent.XTick = 1:nv;
+    he.Parent.XTickLabel = VOIs;
+end
+
+prepFigForExport;
 %% PLOT PAR ERROR BARS AND INDIV SUBS
 parlab = {'center','sz','amp','base'};
 plim = [0 16; 0 2; -0.75 1];
