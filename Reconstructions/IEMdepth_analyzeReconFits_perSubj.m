@@ -118,8 +118,8 @@ end
 writetable(table_to_save,[code_folder 'MixedModels/recon_err_tbl.txt']);
 
 
-% tab2save = table(reshape(repmat({'1','2','3','4','5','6'},nv,1),[],1),...
-%     reshape(repmat(VOIs',1,nrehinc),[],1),'VariableNames',{'err','ROI','position', 'subject'});
+labels = table(reshape(repmat({'1','2','3','4','5','6'},nv,1),[],1),...
+    reshape(repmat(VOIs',1,nrec),[],1),'VariableNames',{'position','ROI'});
 % 
 % writetable(table_to_save,[code_folder 'MixedModels/recon_err_tbl.txt']);
 
