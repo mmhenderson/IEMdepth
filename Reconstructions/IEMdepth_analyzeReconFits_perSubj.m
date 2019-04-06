@@ -1,23 +1,11 @@
-% Analyze reconstruction fits for all subjects, using bootstrapping to
-% estimate variability of each parameter
-
+% IEMdepth_analyzeReconFits_perSubj.m
 % VAV 11/21/2018
 
-clear
-
-% This is the directory where the folders "IEMdepth_trialData" and
-% "IEMdepth_chanResp" are located.
-root = '/usr/local/serenceslab/maggie/IEMdepth/';
-
-% set this to wherever you've put all the code folders (one level up from
-% where this script lives, probably). Might be the same as root, but
-% doesn't have to be. 
-code_folder = '/usr/local/serenceslab/maggie/mFiles/IEMdepth/';
-
-%%
 subj = {'AI','AP','BB','BC','BD','BJ','BM','BN','BO'};
 VOIs = {'V1','V2','V3','V4','V3A','V3B','IPS0','LO1','LO2'};
 ns = numel(subj); nv = numel(VOIs);
+
+root = '/usr/local/serenceslab/maggie/IEMdepth/';
 
 dimlab = {'X','Z'};
 sessi = 2;
@@ -42,6 +30,8 @@ load(fn,'avgRec_1D');
 stimLocs = cat(2,avgRec_1D(:).stimLocs)';
 [ndim,nrec] = size(stimLocs);
 npar = 4;
+
+savefn = sprintf('%sIEMdepth_reconFits_vy/Recon1D_perSubj_ResampledFitStats.mat', root);
     
 %%
 
@@ -95,33 +85,42 @@ mauchly_xz = mauchly(rmxz)
 % run my repeated measures anova here
 ranovaxz = ranova(rmxz, 'WithinModel','SpaceDim*ROI')
 
-%% Export a table for loading by RStudio
+%% 2 way ANOVA of fit pos x ROI
 
-X = [];
-ix = 0;
-for ss = 1:ns
+% To make the ANOVA table, make a column for the subject
+dp = table([1:ns]','VariableNames',{'Subj'});
+% Now make a column for each repeated measure (i.e. ROI)
+ii = 1;
+
+for pp = 1:nrec
     for vv = 1:nv
-        for pp = 1:nrec
-            
-            thiserr = fitErr(vv,ss,2,pp);
-            ix = ix+1;
-            X(ix,:) = [thiserr, vv, pp,ss];
-            
+        tmp = squeeze(fitErr(vv,:,2,pp))';
+%         dp = [dp, table(reshape(tmp,[],1),'VariableNames',{sprintf('Y%d',ii)})];
+        if pp==1
+            dp = [dp, table(reshape(tmp,[],1),'VariableNames',{sprintf('%s',VOIs{vv})})];        
+        else
+            dp = [dp, table(reshape(tmp,[],1),'VariableNames',{sprintf('%s_%d',VOIs{vv}, pp-1)})];
         end
+        ii = ii + 1;
+        clear tmp
     end
 end
 
-table_to_save = array2table(X, 'VariableNames',{'err','ROI','position','subject'});
-if ~isfolder([code_folder 'MixedModels'])
-    mkdir([code_folder 'MixedModels']);
-end
-writetable(table_to_save,[code_folder 'MixedModels/recon_err_tbl.txt']);
+within = table(reshape(repmat({'1','2','3','4','5','6'},nv,1),[],1),...
+    reshape(repmat(VOIs',1,nrec),[],1),'VariableNames',{'Position', 'ROI'});
 
+writetable(dp,'/usr/local/serenceslab/maggie/mFiles/IEMdepth/MixedModels/fitErr2way.csv');
 
-labels = table(reshape(repmat({'1','2','3','4','5','6'},nv,1),[],1),...
-    reshape(repmat(VOIs',1,nrec),[],1),'VariableNames',{'position','ROI'});
+% rmp = fitrm(dp,'Y1-Y54~1','WithinDesign',within);
 % 
-% writetable(table_to_save,[code_folder 'MixedModels/recon_err_tbl.txt']);
+% mauchly_mp = mauchly(rmp)
+% 
+% % run my repeated measures anova here
+% ranova_mp = ranova(rmp, 'WithinModel','Position*ROI')
+% 
+% dp2 = table2array(dp);
+% [p,tbl,st] = kruskalwallis(dp2(:,2:end),within.Position)
+% [p,tbl,st] = kruskalwallis(dp2(:,2:end),within.ROI)
 
 %% 1-way ANOVA on fit error
 % VAV 12/20/2018
@@ -321,7 +320,7 @@ disp(squeeze(ciCoefStimLocs(:,2,:,1))');
 disp('V3AB');
 disp(squeeze(ciCoefStimLocs(:,2,:,5))');
 
-%% MAKE A VIOLIN PLOT OF THE ERROR DISTRIBUTIONS 
+%% MAKE A VIOLIN PLOT OF THESE DISTRIBUTIONS
 
 figure;
 h(1) = subplot(2,2,1);
@@ -336,7 +335,7 @@ violinplot(squeeze(mean(iterDiffLocs(2,:,:,:),2))',VOIs,...
 title('Recon Z error');
 match_ylim(h(1:2),[0 1.15]);
 
-%% Make a violin plot of the slope distributions (Figure 6B)
+%%
 figure;
 h(3) = subplot(1,2,1);
 hl = line([0 10], [0 0]);
@@ -359,12 +358,12 @@ match_ylim(h(3:4),[-0.25,1.1]);
 
 prepFigForExport;
 %%
-% outfn = sprintf('%sfigs%sRecon1D_allIEMSlope_singleSubFits.eps', root, filesep);
-% fprintf('Saving file...');
-% print(gcf, '-depsc','-painters',outfn);
-% fprintf('done!\n');
+outfn = sprintf('%sfigs%sRecon1D_allIEMSlope_singleSubFits.eps', root, filesep);
+fprintf('Saving file...');
+print(gcf, '-depsc','-painters',outfn);
+fprintf('done!\n');
 
-%% PLOT STIM LOC ERROR BARS AND INDIV SUBS (Figure 6A)
+%% PLOT STIM LOC ERROR BARS AND INDIV SUBS
 cm = plasma(10);
 
 figure;
@@ -392,10 +391,10 @@ for dd = 1:2 % ndim
 end
 
 prepFigForExport;
-% outfn = sprintf('%sfigs%sRecon1D_IEMErr_singleSubFits.eps', root, filesep);
-% fprintf('Saving file...');
+outfn = sprintf('%sfigs%sRecon1D_IEMErr_singleSubFits.eps', root, filesep);
+fprintf('Saving file...');
 % print(gcf, '-depsc','-painters',outfn);
-% fprintf('done!\n');
+fprintf('done!\n');
 
 %% PAIRWISE VOI SLOPE COMPARISONS
 pairedVOIs = combnk(1:nv,2);
@@ -473,7 +472,7 @@ ci_diff_err = arrayfun(@(vi) prctile(mean(iterDiffLocs(2,:,pairedVOIs(vi,1),:)-.
     iterDiffLocs(2,:,pairedVOIs(vi,2),:),2),[2.5,97.5]), ptmp,...
     'UniformOutput',0); 
 
-%% PLOT STIM LOC ERROR BARS AND INDIV SUBS (Figure 5)
+%% PLOT STIM LOC ERROR BARS AND INDIV SUBS
 cm = plasma(10);
 allX = cat(3, X1, X2);
 
@@ -516,10 +515,10 @@ match_xlim(hs, [-2, 2]);
 match_ylim(hs, [-2,2.25]);
 prepFigForExport;
 %%
-% outfn = sprintf('%sfigs%sRecon1D_XZSlope_singleSubFits.eps', root, filesep);
-% fprintf('Saving file...');
-% print(gcf, '-depsc','-painters',outfn);
-% fprintf('done!\n');
+outfn = sprintf('%sfigs%sRecon1D_XZSlope_singleSubFits.eps', root, filesep);
+fprintf('Saving file...');
+print(gcf, '-depsc','-painters',outfn);
+fprintf('done!\n');
 
 clear hs he
 
@@ -540,7 +539,7 @@ ciPar = prctile(iterPar,[2.5,97.5]);
 parlab = {'center','sz','amp','base'};
 plim = [0 16; 0 2; -0.75 1];
 cm = plasma(10);
-hs = []
+
 % figure;
 % ploti = 1;
 for dd = 1:2 % ndim
@@ -572,3 +571,10 @@ for dd = 1:2 % ndim
     end
     prepFigForExport;
 end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% SAVE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+save(savefn);
+fprintf('Saved %s!\n', savefn);
