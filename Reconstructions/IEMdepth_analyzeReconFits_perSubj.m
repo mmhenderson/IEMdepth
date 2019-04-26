@@ -43,6 +43,7 @@ stimLocs = cat(2,avgRec_1D(:).stimLocs)';
 [ndim,nrec] = size(stimLocs);
 npar = 4;
     
+parlab = {'Cent','Size','Ampl','Base'};
 %%
 
 allFits = nan(nv,ns,ndim,nrec,npar);
@@ -57,44 +58,6 @@ for ss = 1:ns
     clear tmp fitdat
 end
 
-% fit error
-sl = permute(repmat(stimLocs,1,1,nv,ns),[3 4 1 2]);
-fitErr = abs(allFits(:,:,:,:,1) - sl);
-
-%%
-allFitCenters = squeeze(allFits(:,:,2,:,1));
-roiLab = repmat([1:nv]',1,ns,6);
-subLab = repmat(1:ns,nv,1,6);
-posLab = repmat(permute(stimLocs(2,:),[3 1 2]),ns,nv,1);
-fc = [allFitCenters(:), posLab(:), roiLab(:), subLab(:)];
-csvwrite('fitCenters.csv',fc,1);
-
-%% 2 way ANOVA on fit err
-
-% To make the ANOVA table, make a column for the subject
-dxz = table([1:ns]','VariableNames',{'Subj'});
-% Now make a column for each repeated measure (i.e. ROI)
-ii = 1;
-for dd = 1:ndim
-    for vv = 1:nv
-        % Take the mean across the recon positions
-        tmp = squeeze(mean(fitErr(vv,:,dd,:),4))';
-        dxz = [dxz, table(reshape(tmp,[],1),'VariableNames',{sprintf('Y%d',ii)})];
-        ii = ii + 1;
-        clear tmp
-    end
-end
-
-within = table(reshape(repmat({'X','Z'},nv,1),[],1),...
-    [VOIs';VOIs'],'VariableNames',{'SpaceDim', 'ROI'});
-
-rmxz = fitrm(dxz,'Y1-Y18~1','WithinDesign',within);
-
-mauchly_xz = mauchly(rmxz)
-
-% run my repeated measures anova here
-ranovaxz = ranova(rmxz, 'WithinModel','SpaceDim*ROI')
-
 %% Export a table of each param for loading by RStudio
 
 X_err = [];X_amp = []; X_size = []; X_base = [];
@@ -104,22 +67,19 @@ for pp = 1:nrec
     for vv = 1:nv
         for ss = 1:ns
             
-            thiserr = fitErr(vv,ss,2,pp);
             ix = ix+1;
-            X_err(ix,:) = [thiserr, vv, pp,ss];            
             
-              % allFits is nROI x nSubs x nDim x nLocs x nParams
+            % allFits is nROI x nSubs x nDim x nLocs x nParams
+            thiserr = allFits(vv,ss,2,pp,1) - stimLocs(2,pp);
+            X_err(ix,:) = [abs(thiserr), vv, pp,ss];                        
+              
             thisamp= allFits(vv,ss,2,pp,3);
-            ix = ix+1;
             X_amp(ix,:) = [thisamp, vv, pp,ss];
             
             thissize= allFits(vv,ss,2,pp,2);
-            ix = ix+1;
             X_size(ix,:) = [thissize, vv, pp,ss];
-            
-             % allFits is nROI x nSubs x nDim x nLocs x nParams
-            thissize= allFits(vv,ss,2,pp,4);
-            ix = ix+1;
+
+            thissize= allFits(vv,ss,2,pp,4);          
             X_base(ix,:) = [thissize, vv, pp,ss];
             
         end
@@ -150,86 +110,7 @@ if ~isfolder([code_folder 'MixedModels'])
 end
 writetable(table_to_save,[code_folder 'MixedModels/recon_base_tbl.txt']);
 
-
-%% 1-way ANOVA on fit error
-% VAV 12/20/2018
-
-oneway = struct('model',[],'mauchly',[],'results',[]);
-
-for dd = 1:ndim
-    % To make the ANOVA table, make a column for the subject
-    d = table([1:ns]','VariableNames',{'Subj'});
-    % Now make a column for each repeated measure (i.e. ROI)
-    for vv = 1:nv
-        % Take the mean across the recon positions
-        tmp = squeeze(mean(fitErr(vv,:,dd,:),4))';
-        d = [d, table(reshape(tmp,[],1),'VariableNames',{sprintf('y%d',vv)})];
-
-        clear tmp
-    end
-
-    % This was to check ANOVA results against R.
-    % writetable(X,'fitErr.csv');
-
-    within = table(VOIs','VariableNames',{'ROI'});
-
-    % fit the repeated measures model
-    oneway(dd).model = fitrm(d,'y1-y9~1','WithinDesign',within);
-
-    oneway(dd).mauchly = mauchly(oneway(dd).model);
-
-    % run my repeated measures anova here
-    oneway(dd).results = ranova(oneway(dd).model, 'WithinModel','ROI');
-
-    % d2 = table2array(d);
-    % [p,tbl,st] = kruskalwallis(d2(:,2:end))
-end
-
-%% 2 way ANOVA of fit center x ROI
-
-% To make the ANOVA table, make a column for the subject
-dp = table([1:ns]','VariableNames',{'Subj'});
-% Now make a column for each repeated measure (i.e. ROI)
-ii = 1;
-for pp = 1:nrec
-    for vv = 1:nv        
-        % allFits is nROI x nSubs x nDim x nLocs x nParams
-        tmp = squeeze(allFits(vv,:,2,pp,1));
-        dp = [dp, table(reshape(tmp,[],1),'VariableNames',{sprintf('Y%d',ii)})];
-        ii = ii + 1;
-        clear tmp
-    end
-end
-
-within = table(reshape(repmat({'1','2','3','4','5','6'},nv,1),[],1),...
-    reshape(repmat(VOIs',1,nrec),[],1),'VariableNames',{'Position', 'ROI'});
-
-rmp = fitrm(dp,'Y1-Y54~1','WithinDesign',within);
-
-mauchly_mp = mauchly(rmp)
-
-% run my repeated measures anova here
-ranova_mp = ranova(rmp, 'WithinModel','Position*ROI')
-
-% in_data: must be a matrix of num_measurements (i.e. subjects) x factor 1
-% % (roi) x factor 2 (condition).
-% md = permute(squeeze(squeeze(allFits(:,:,2,:,1))),[2,3,1]);
-% % md is subj x Position x ROI
-% [p_vals, ranova_table, ~] = get_f_dist_parfor(md,1000,1,1)
-
-% mctable = multcompare(rmp,'ROI','By','Position');
-% 
-% % % each pairing is reported in both directions - look at only one direction
-% [~,pmask] = fdr(mctable.pValue, .05);
-% posDiffs = mctable.Difference > 0 & pmask;
-% sigDiffs = mctable(posDiffs,:)
-
-
-% dp2 = table2array(dp);
-% [p,tbl,st] = kruskalwallis(dp2(:,2:end),within.Position)
-% [p,tbl,st] = kruskalwallis(dp2(:,2:end),within.ROI)
-
-%% FIT SUBJ SLOPES
+%% FIT SUBJ SLOPES 
 X1 = [stimLocs(1,:)',ones(nrec,1)];
 X2 = [stimLocs(2,:)',ones(nrec,1)];
 
@@ -242,7 +123,7 @@ for vv = 1:nv
     end
 end
 
-%% 1-way ANOVA on the slopes
+%% 1-way ANOVA on the slopes (not significant)
 sd = table([1:ns]','VariableNames',{'Subj'});
 % Now make a column for each repeated measure (i.e. ROI)
 for vv = 1:nv
@@ -250,16 +131,6 @@ for vv = 1:nv
     sd = [sd, table(squeeze(indivSubSlopes(vv,:,2,1))',...
         'VariableNames',{sprintf('y%d',vv)})];
 end
-
-% non-parametric shuffle ANOVA
-% rng(121);
-% tic
-% [p_vals, ranova_table, ~] = get_f_dist_parfor(squeeze(indivSubSlopes(:,:,2,1))',...
-%     1000, 1, 1)
-% toc
-
-% This was to check ANOVA results against R.
-% writetable(X,'fitErr.csv');
 
 within = table(VOIs','VariableNames',{'ROI'});
 
@@ -271,56 +142,60 @@ mauchly_tbl = mauchly(sloperm);
 % run my repeated measures anova here
 slopeanovatbl = ranova(sloperm, 'WithinModel','ROI');
 
-sd2 = table2array(sd)
-[p2,tbl2,st2] = kruskalwallis(sd2(:,2:end))
+sd2 = table2array(sd);
+% [p2,tbl2,st2] = kruskalwallis(sd2(:,2:end));
 
-%% BOOTSTRAP THE FIT CENTERS
+
+%% BOOTSTRAP ALL THE PARAMETERS
 rs = 3791499;
 rng(rs);
 niters = 1000;
 
 sorder = randsample(1:length(subj), niters*length(subj), 1);
 sorder = reshape(sorder, [niters, length(subj)]);
-iterStimLocs = nan(niters,ndim,nrec,nv);
+iterPars = nan(niters,ndim,nrec,nv,npar);
+% allFits is nROI x nSubs x nDim x nLocs x nParams
+% iterPars is nIters x nDim x nRec x nROIs x nParams
 
-% allFits is nv x ns x ndim x nrec x npar
 parfor ii = 1:niters
-    % center
-    rsi = sorder(ii,:);
-    thisf = permute(squeeze(mean(allFits(:,rsi,:,:,1),2)), [2 3 1]);
-    % thisf is ndim x nrec x nv
-    % save out resampled center fits for each iteration
-    iterStimLocs(ii,:,:,:) = thisf;
+    for pp=1:npar
+        % center
+        rsi = sorder(ii,:);
+        % allFits is nROI x nSubs x nDim x nLocs x nParams
+        thisf = permute(squeeze(mean(allFits(:,rsi,:,:,pp),2)), [2 3 1]);
+        % thisf is ndim x nrec x nv
+        % save out resampled center fits for each iteration
+        iterPars(ii,:,:,:,pp) = thisf;
+    end
 end
 
-% This shows if the fit centers are close to the real centers.
-meanStimLocs = squeeze(mean(iterStimLocs));
-ciStimLocs = prctile(iterStimLocs,[2.5,97.5]);
-disp('V1');
-disp(squeeze(ciStimLocs(:,2,:,1))');
-disp('V3AB');
-disp(squeeze(ciStimLocs(:,2,:,5))');
-
+%% Calculate error of the centers
+% iterCenters is niter x ndim x nrec x nv 
+% iterDiffLocs is nDim x npos x nv x niter
 % meanDiffLocs is ndim x npos x nv
-iterDiffLocs = abs(permute(iterStimLocs,[2,3,4,1]) - repmat(stimLocs,1,1,nv,niters));
+% ciDiffLocs is ndim x npos x nv x 2
+iterCenters = squeeze(iterPars(:,:,:,:,1));
+iterDiffLocs = abs(permute(iterCenters,[2,3,4,1]) - repmat(stimLocs,1,1,nv,niters));
 meanDiffLocs = squeeze(mean(iterDiffLocs,4));
 ciDiffLocs = prctile(iterDiffLocs,[2.5,97.5],4);
-posMeanDiffLocs = squeeze(mean(meanDiffLocs,2));
-ciPosDiffLocs = squeeze(prctile(mean(iterDiffLocs,2),[2.5,97.5],4));
 
-figure;
-for dd = 1:ndim
-    d = squeeze(posMeanDiffLocs(dd,:));
-    errorbar(1:nv,d,squeeze(ciPosDiffLocs(dd,:,1))-d,...
-        squeeze(ciPosDiffLocs(dd,:,2))-d); hold on;
-end
-ax = gca;
-ax.XTickLabel = VOIs;
+% posMeanDiffLocs = squeeze(mean(meanDiffLocs,2));
+% ciPosDiffLocs = squeeze(prctile(mean(iterDiffLocs,2),[2.5,97.5],4));
 
-% X error
-[squeeze(posMeanDiffLocs(1,:))',squeeze(ciPosDiffLocs(1,:,1))',squeeze(ciPosDiffLocs(1,:,2))']
-% Z error
-[squeeze(posMeanDiffLocs(2,:))',squeeze(ciPosDiffLocs(2,:,1))',squeeze(ciPosDiffLocs(2,:,2))']
+% mean_ci_1 = squeeze(mean(ciDiffLocs(1,:,:,:),2));
+% 
+% mean_ci_2 = prctile(squeeze(mean(iterDiffLocs(1,:,:,:),2)), [2.5, 97.5], 2);
+
+%% print out a couple of summary stats for putting in text
+
+% amp averaged over position
+iterVals = squeeze(mean(iterPars(:,:,:,:,3),3));
+meanVals = squeeze(mean(iterVals,1));
+ciVals = prctile(iterVals, [2.5, 97.5]);
+
+avg_low_high_x = [meanVals(1,:)', squeeze(ciVals(:,1,:))'];
+avg_low_high_z = [meanVals(2,:)', squeeze(ciVals(:,2,:))'];
+% ci_x = squeeze(mean(ciAmps(1,:,::),2));
 
 %% REGRESS SLOPE TO FIT STIM CENTERS
 
@@ -331,7 +206,7 @@ coefStimLocs = nan(niters,ndim,2,nv);
 for vv = 1:nv
     t1 = nan(niters,2); t2 = nan(niters,2);
     parfor ii = 1:niters
-        tmp = squeeze(iterStimLocs(ii,:,:,vv));
+        tmp = squeeze(iterCenters(ii,:,:,vv));
         t1(ii,:) = X1 \ tmp(1,:)';
         t2(ii,:) = X2 \ tmp(2,:)';
     end
@@ -349,6 +224,52 @@ disp(squeeze(ciCoefStimLocs(:,2,:,1))');
 disp('V3AB');
 disp(squeeze(ciCoefStimLocs(:,2,:,5))');
 
+%% PLOT STIM LOC ERROR BARS AND INDIV SUBS (Figure 5)
+
+% get the confidence intervals - iterCenters is niters x ndim x nrec x nv
+ciCenters = prctile(iterCenters,[2.5,97.5]);
+
+cm = plasma(10);
+allX = cat(3, X1, X2);
+
+figure; pp = 1;
+for dd = 1:2 % ndim
+%     figure;
+    for vv = 1:nv
+        hs(pp) = subplot(2,9,pp); hold all;
+        tmp = squeeze(allFits(vv,:,dd,:,1));
+        for ss = 1:ns
+            ht = scatter(stimLocs(dd,:), tmp(ss,:), [], cm(ss,:), 'filled');
+            alpha(0.25);
+        end
+        plot(stimLocs(dd,:), stimLocs(dd,:), 'Color', [0.8 0.8 0.8], ...
+            'LineWidth', 1.5);
+        sdat = squeeze(mean(iterCenters(:,dd,:,vv)));
+        cidat = abs(squeeze(ciCenters(:,dd,:,vv)) - sdat');
+        he = errorbar(stimLocs(dd,:), sdat, cidat(1,:), cidat(2,:));
+        he.Color = [0.25 0.25 0.25]; he.LineWidth = 1.5;
+        % plot the mean slope
+        plot(stimLocs(dd,:), allX(:,:,dd) * squeeze(meanCoefStimLocs(dd,:,vv))', ...
+                ':', 'Color', [0 0 0], 'LineWidth', 2);
+            
+        title(VOIs{vv});
+        axis equal;
+        
+        if pp == 1
+            legend([subj,{'true location', 'IEM estimate', 'line fit to IEM'}]);
+        end
+        if vv == 1
+            ylabel(dimlab{dd});
+        end
+        
+        pp = pp + 1;
+    end
+%     suptitle(dimlab{dd});
+end
+
+match_xlim(hs, [-2, 2]);
+match_ylim(hs, [-2,2.25]);
+prepFigForExport;
 %% MAKE A VIOLIN PLOT OF THE ERROR DISTRIBUTIONS 
 
 figure;
@@ -392,15 +313,15 @@ prepFigForExport;
 % print(gcf, '-depsc','-painters',outfn);
 % fprintf('done!\n');
 
-%% PLOT STIM LOC ERROR BARS AND INDIV SUBS (Figure 6A)
+%% PLOT RECON CENTER ERROR (W/ INDIV SUBS), BY ROI
+
 cm = plasma(10);
 
 figure;
 for dd = 1:2 % ndim
     subplot(1,2,dd);
-%     squeeze(coefStimLocs(:,dd,1,:))    
-    % squeeze(meanCoefStimLocs(dd,:,vv))'
-    
+
+    % allFits is nROI x nSubs x nDim x nLocs x nParams
     tmp = squeeze(allFits(:,:,dd,:,1));
     % plot single subj data
     for ss = 1:ns
@@ -409,9 +330,12 @@ for dd = 1:2 % ndim
         alpha(0.25);
     end
     
-	itererr = squeeze(mean(iterDiffLocs(dd,:,:,:),2));
-    m = squeeze(mean(itererr,2));
-    ci = (prctile(itererr,[2.5,97.5],2) - m)';
+    % iterDiffLocs is nDim x npos x nv x niter
+    iterVals = squeeze(mean(iterDiffLocs(dd,:,:,:),2))';
+    meanVals = squeeze(mean(iterVals,1));
+    ciVals = prctile(iterVals, [2.5, 97.5]) - repmat(mean(iterVals,1), 2, 1);
+    m = meanVals; ci=ciVals;
+
     he = errorbar(1:nv, m, ci(1,:), ci(2,:),'-o');
     he.Color = [0.25 0.25 0.25]; he.LineWidth = 1.5;
     he.LineStyle = 'none';
@@ -421,12 +345,154 @@ end
 
 prepFigForExport;
 
-% outfn = sprintf('%sfigs%sRecon1D_IEMErr_singleSubFits.eps', root, filesep);
-% fprintf('Saving file...');
-% print(gcf, '-depsc','-painters',outfn);
-% fprintf('done!\n');
+outfn = sprintf('%sfigs%sRecon1D_AbsErrorByROI_singleSubFits.eps', root, filesep);
+fprintf('Saving file...');
+print(gcf, '-depsc','-painters',outfn);
+fprintf('done!\n');
 
-%% PAIRWISE VOI SLOPE COMPARISONS
+%% PLOT RECON CENTER ERROR (W/ INDIV SUBS), BY POSITION
+
+cm = plasma(10);
+
+figure;
+dd=2;
+% for dd = 1:2 % ndim
+%     subplot(1,2,dd);
+%     squeeze(coefStimLocs(:,dd,1,:))    
+    % squeeze(meanCoefStimLocs(dd,:,vv))'
+    
+    tmp = squeeze(allFits(:,:,dd,:,1));
+    % plot single subj data
+    for ss = 1:ns
+        dat = mean(abs(squeeze(tmp(:,ss,:)) - repmat(stimLocs(dd,:),nv,1)),1);
+        ht = scatter(1:nrec, dat, [], cm(ss,:), 'filled'); hold on;
+        alpha(0.25);
+    end
+    
+     % iterDiffLocs is nDim x npos x nv x niter
+    iterVals = squeeze(mean(iterDiffLocs(dd,:,:,:),3))';
+    meanVals = squeeze(mean(iterVals,1));
+    ciVals = prctile(iterVals, [2.5, 97.5]) - repmat(mean(iterVals,1), 2, 1);
+    m = meanVals; ci=ciVals;
+    
+    he = errorbar(1:nrec, m, ci(1,:), ci(2,:),'-o');
+    he.Color = [0.25 0.25 0.25]; he.LineWidth = 1.5;
+    he.LineStyle = 'none';
+    he.Parent.XTick = 1:nrec;
+    he.Parent.XTickLabel = stimLocs(2,:);
+    xlim([0,7]);
+% end
+
+prepFigForExport;
+
+outfn = sprintf('%sfigs%sRecon1D_AbsErrorByPos_singleSubFits.eps', root, filesep);
+fprintf('Saving file...');
+print(gcf, '-depsc','-painters',outfn);
+fprintf('done!\n');
+%% PLOT AMPLITUDE, SIZE, BASELINE (by ROI)
+parlims = [NaN, NaN; 2.5,8.5; 0.25, 1.1; -0.4, 0.2];
+
+for pp = 2:4
+
+    cm = plasma(10);
+
+    figure;
+    for dd = 1:2 % ndim
+        subplot(1,2,dd);
+        
+        % allFits is nROI x nSubs x nDim x nLocs x nParams
+        tmp = squeeze(allFits(:,:,dd,:,pp));
+        % plot single subj data
+        for ss = 1:ns
+            dat = mean(squeeze(tmp(:,ss,:)),2);
+            ht = scatter(1:nv, dat, [], cm(ss,:), 'filled'); hold on;
+            alpha(0.25);
+        end
+
+%         iterPars is nIters x nDim x nRec x nROIs x nParams
+%         meanAmps is [nDim x nRec x nVOIs];
+%         ciAmps is [2 x nDim x nRec x nVOIs];
+        iterVals = squeeze(mean(iterPars(:,dd,:,:,pp),3));
+        meanVals = squeeze(mean(iterVals,1));
+        ciVals = prctile(iterVals, [2.5, 97.5]) - repmat(mean(iterVals,1), 2, 1);
+        m = meanVals; ci=ciVals;
+
+        he = errorbar(1:nv, m, ci(1,:), ci(2,:),'-o');
+        he.Color = [0.25 0.25 0.25]; he.LineWidth = 1.5;
+        he.LineStyle = 'none';
+        he.Parent.XTick = 1:nv;
+        he.Parent.XTickLabel = VOIs;
+        he.Parent.XTickLabelRotation = 90;
+        title(dimlab{dd});
+        ylim(parlims(pp,:));
+    end
+    suptitle([parlab{pp} ' , plotted by ROI']);
+
+    prepFigForExport;
+
+    outfn = sprintf('%sfigs%sRecon1D_%sByROI_singleSubFits.eps', root, filesep, parlab{pp});
+    fprintf('Saving file...');
+    print(gcf, '-depsc','-painters',outfn);
+    fprintf('done!\n');
+end
+
+%% PLOT AMPLITUDE, SIZE, BASELINE (by Position)
+parlims = [NaN, NaN; 2.5,8.5; 0.25, 1.1; -0.4, 0.2];
+
+for pp = 2:4
+
+    % allFits is nROI x nSubs x nDim x nLocs x nParams
+    % iterPars is nIters x nDim x nRec x nROIs x nParams
+    % meanAmps is [nDim x nRec x nVOIs];
+    % ciAmps is [2 x nDim x nRec x nVOIs];
+    iterVals = squeeze(iterPars(:,:,:,:,pp));
+    meanVals = squeeze(mean(iterVals,1));
+    ciVals = prctile(iterVals, [2.5, 97.5]) - repmat(mean(iterVals,1), 2, 1,1,1);
+
+    % same thing, but plotted by position instead of ROI
+    cm = plasma(10);
+
+    figure;
+    dd=2;
+%     for dd = 1:2 % ndim
+%         subplot(1,2,dd);
+
+        tmp = squeeze(allFits(:,:,dd,:,pp));
+        % plot single subj data
+        for ss = 1:ns
+             dat = mean(squeeze(tmp(:,ss,:)),1);
+            ht = scatter(1:nrec, dat, [], cm(ss,:), 'filled'); hold on;
+            alpha(0.25);
+        end
+
+%         iterPars is nIters x nDim x nRec x nROIs x nParams
+%         meanAmps is [nDim x nRec x nVOIs];
+%         ciAmps is [2 x nDim x nRec x nVOIs];
+        iterVals = squeeze(mean(iterPars(:,dd,:,:,pp),4));
+        meanVals = squeeze(mean(iterVals,1));
+        ciVals = prctile(iterVals, [2.5, 97.5]) - repmat(mean(iterVals,1), 2, 1);
+        m = meanVals; ci=ciVals;
+
+        he = errorbar(1:nrec, m, ci(1,:), ci(2,:),'-o');
+        he.Color = [0.25 0.25 0.25]; he.LineWidth = 1.5;
+        he.LineStyle = 'none';
+        he.Parent.XTick = 1:nv;
+        he.Parent.XTickLabel = stimLocs(2,:);
+        title(dimlab{dd});
+        xlim([0,7]);
+%         ylim(parlims(pp,:));
+%     end
+    suptitle([parlab{pp} ' , plotted by position']);
+
+    prepFigForExport;
+
+    outfn = sprintf('%sfigs%sRecon1D_%sByPos_singleSubFits.eps', root, filesep, parlab{pp});
+    fprintf('Saving file...');
+    print(gcf, '-depsc','-painters',outfn);
+    fprintf('done!\n');
+
+end
+%% PAIRWISE VOI SLOPE COMPARISONS ( some significant before FDR)
 pairedVOIs = combnk(1:nv,2);
 fdr_mask = nan(size(pairedVOIs))';
 
@@ -464,7 +530,7 @@ ci_diff_slope = arrayfun(@(vi) prctile(squeeze(coefStimLocs(:,2,1,pairedVOIs(vi,
     squeeze(coefStimLocs(:,2,1,pairedVOIs(vi,2)))), [2.5,97.5]), ptmp,...
     'UniformOutput',0); 
 
-%% PAIRWISE ERROR COMPARISONS
+%% PAIRWISE ERROR COMPARISONS (bootstrap method, not significant)
 pairedVOIs = combnk(1:nv,2);
 fdr_maskErr = nan(size(pairedVOIs))';
 
@@ -502,131 +568,3 @@ ci_diff_err = arrayfun(@(vi) prctile(mean(iterDiffLocs(2,:,pairedVOIs(vi,1),:)-.
     iterDiffLocs(2,:,pairedVOIs(vi,2),:),2),[2.5,97.5]), ptmp,...
     'UniformOutput',0); 
 
-%% PLOT STIM LOC ERROR BARS AND INDIV SUBS (Figure 5)
-cm = plasma(10);
-allX = cat(3, X1, X2);
-
-figure; pp = 1;
-for dd = 1:2 % ndim
-%     figure;
-    for vv = 1:nv
-        hs(pp) = subplot(2,9,pp); hold all;
-        tmp = squeeze(allFits(vv,:,dd,:,1));
-        for ss = 1:ns
-            ht = scatter(stimLocs(dd,:), tmp(ss,:), [], cm(ss,:), 'filled');
-            alpha(0.25);
-        end
-        plot(stimLocs(dd,:), stimLocs(dd,:), 'Color', [0.8 0.8 0.8], ...
-            'LineWidth', 1.5);
-        sdat = squeeze(mean(iterStimLocs(:,dd,:,vv)));
-        cidat = abs(squeeze(ciStimLocs(:,dd,:,vv)) - sdat');
-        he = errorbar(stimLocs(dd,:), sdat, cidat(1,:), cidat(2,:));
-        he.Color = [0.25 0.25 0.25]; he.LineWidth = 1.5;
-        % plot the mean slope
-        plot(stimLocs(dd,:), allX(:,:,dd) * squeeze(meanCoefStimLocs(dd,:,vv))', ...
-                ':', 'Color', [0 0 0], 'LineWidth', 2);
-            
-        title(VOIs{vv});
-        axis equal;
-        
-        if pp == 1
-            legend([subj,{'true location', 'IEM estimate', 'line fit to IEM'}]);
-        end
-        if vv == 1
-            ylabel(dimlab{dd});
-        end
-        
-        pp = pp + 1;
-    end
-%     suptitle(dimlab{dd});
-end
-
-match_xlim(hs, [-2, 2]);
-match_ylim(hs, [-2,2.25]);
-prepFigForExport;
-%%
-% outfn = sprintf('%sfigs%sRecon1D_XZSlope_singleSubFits.eps', root, filesep);
-% fprintf('Saving file...');
-% print(gcf, '-depsc','-painters',outfn);
-% fprintf('done!\n');
-
-clear hs he
-
-%% BOOTSTRAP THE OTHER PARAMS
-
-% allFits is nv x ns x ndim x nrec x npar
-parfor ii = 1:niters
-    % center
-    rsi = sorder(ii,:);
-    thisf = permute(squeeze(mean(allFits(:,rsi,:,:,2:4),2)), [2 3 1 4]);
-    % thisf is ndim x nrec x nv x npar
-    iterPar(ii,:,:,:,:) = thisf;
-end
-
-ciPar = prctile(iterPar,[2.5,97.5]);
-
-%% PLOT AMPLITUDE ERROR BARS AND INDIV SUBS
-cm = plasma(10);
-
-figure;
-for dd = 1:2 % ndim
-    subplot(1,2,dd);
-%     squeeze(coefStimLocs(:,dd,1,:))    
-    % squeeze(meanCoefStimLocs(dd,:,vv))'
-    
-    tmp = squeeze(allFits(:,:,dd,:,3));
-    % plot single subj data
-    for ss = 1:ns
-        dat = mean(squeeze(tmp(:,ss,:)),2);
-        ht = scatter(1:nv, dat, [], cm(ss,:), 'filled'); hold on;
-        alpha(0.25);
-    end
-    
-	sdat = squeeze(mean(iterPar(:,dd,:,vv,2)));
-    cidat = abs(squeeze(ciPar(:,dd,:,vv,2)) - sdat');
-    m = squeeze(mean(itererr,2));
-    ci = (prctile(itererr,[2.5,97.5],2) - m)';
-    he = errorbar(1:nv, m, ci(1,:), ci(2,:),'-o');
-    he.Color = [0.25 0.25 0.25]; he.LineWidth = 1.5;
-    he.LineStyle = 'none';
-    he.Parent.XTick = 1:nv;
-    he.Parent.XTickLabel = VOIs;
-end
-
-prepFigForExport;
-%% PLOT PAR ERROR BARS AND INDIV SUBS
-parlab = {'center','sz','amp','base'};
-plim = [0 16; 0 2; -0.75 1];
-cm = plasma(10);
-hs = []
-% figure;
-% ploti = 1;
-for dd = 1:2 % ndim
-    figure; ploti = 1;
-    for pp = 1:3
-        for vv = 1:nv
-            hs(vv) = subplot(3,9,ploti);
-            tmp = squeeze(allFits(vv,:,dd,:,pp+1));
-            sdat = squeeze(mean(iterPar(:,dd,:,vv,pp)));
-            cidat = abs(squeeze(ciPar(:,dd,:,vv,pp)) - sdat');
-            he = errorbar(stimLocs(dd,:), sdat, cidat(1,:), cidat(2,:));
-            he.Color = 'k'; he.LineWidth = 2; hold all;
-            for ss = 1:ns
-                ht = scatter(stimLocs(dd,:), tmp(ss,:), [], cm(ss,:), 'filled');
-                alpha(0.25);
-            end
-            if pp == 1
-                title(VOIs{vv});
-            end
-            if vv == 1
-                ylabel(parlab{pp+1});
-            end
-            ploti = ploti + 1;
-        end
-        match_ylim(hs, plim(pp,:));
-        suptitle(sprintf('%s fit parameters', dimlab{dd}));
-        
-        clear hs;
-    end
-    prepFigForExport;
-end
