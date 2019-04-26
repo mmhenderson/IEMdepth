@@ -24,7 +24,6 @@ fdat$ROI <- factor(fdat$ROI)
 fdat$subject <- factor(fdat$subject)
 fdat$position = factor(fdat$position)
 
-
 fm0 = lmer(base~1+ (1|subject), data=fdat, REML=FALSE)
 fm1 = lmer(base~position + (1|subject), data=fdat, REML=FALSE)
 fm2 = lmer(base~position + (1|subject) + (1|position:subject),  data=fdat, REML=FALSE)
@@ -39,11 +38,6 @@ with(fm5@optinfo$derivs,max(abs(solve(Hessian,gradient)))<2e-3)
 
 anova(fm0,fm1,fm2,fm3,fm4,fm5)
 
-# pairwise comparisons bw all ROIs. this is doing a bunch of paired t-tests 
-#(after averaging across position), and then correcting with the Tukey method.
+# pairwise comparisons, correcting with the Tukey method.
 lsmeans(fm5, pairwise~ROI, adjust='tukey')
 lsmeans(fm5, pairwise~position, adjust='tukey')
-
-# comparing results with a RM anova
-summary(aov(base~position*ROI + Error(1/(subject*position*ROI)), data=fdat))
-TukeyHSD(aov(base~position*ROI + Error(1/(subject*position*ROI)), data=fdat))
