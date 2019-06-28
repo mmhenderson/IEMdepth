@@ -10,7 +10,5 @@ For data, see our OSF repository at: https://osf.io/j7tpf/
 - Also contains code to plot reconstructions and analyze their accuracy over positions and ROIs.
 ## Classifier
 - Matlab code needed to run a linear decoding analysis using libSVM 3.1 (libSVM is not included here but can be downloaded from https://www.csie.ntu.edu.tw/~cjlin/libsvm/)
-## Behavior
-- Matlab code needed to analyze subject behavior on our tasks, as well as visualize the grid used to present stimuli in the experiment. 
 ## MixedModels
 - R code used to analyze the pattern of SVM and encoding model performance over positions and ROIs.
