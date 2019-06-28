@@ -25,7 +25,6 @@ fdat$subject <- factor(fdat$subject)
 fdat$position = factor(fdat$position)
 
 fm0 = lmer(err~1+ (1|subject), data=fdat, REML=FALSE)
-with(fm5@optinfo$derivs,max(abs(solve(Hessian,gradient)))<2e-3)
 fm1 = lmer(err~position + (1|subject), data=fdat, REML=FALSE)
 fm2 = lmer(err~position + (1|subject) + (1|position:subject),  data=fdat, REML=FALSE)
 fm3 = lmer(err~position + ROI + (1|subject) + (1|position:subject),  data=fdat, REML=FALSE)

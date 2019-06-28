@@ -37,6 +37,5 @@ anova(lm0,lm1,lm2,lm3,lm4,lm5)
 
 # pairwise comparisons bw all ROIs. this is doing a bunch of paired t-tests 
 #(after averaging across position), and then correcting with the Tukey method.
-# lsmeans(lm5, pairwise~ROI, adjust='tukey')
 lsmeans(lm2, pairwise~ROI, adjust='tukey')
 
