@@ -123,28 +123,6 @@ for vv = 1:nv
     end
 end
 
-%% 1-way ANOVA on the slopes (not significant)
-sd = table([1:ns]','VariableNames',{'Subj'});
-% Now make a column for each repeated measure (i.e. ROI)
-for vv = 1:nv
-    % Take the mean across the recon positions
-    sd = [sd, table(squeeze(indivSubSlopes(vv,:,2,1))',...
-        'VariableNames',{sprintf('y%d',vv)})];
-end
-
-within = table(VOIs','VariableNames',{'ROI'});
-
-% fit the repeated measures model
-sloperm = fitrm(sd,'y1-y9~1','WithinDesign',within);
-
-mauchly_tbl = mauchly(sloperm);
-
-% run my repeated measures anova here
-slopeanovatbl = ranova(sloperm, 'WithinModel','ROI');
-
-sd2 = table2array(sd);
-% [p2,tbl2,st2] = kruskalwallis(sd2(:,2:end));
-
 
 %% BOOTSTRAP ALL THE PARAMETERS
 rs = 3791499;
@@ -492,79 +470,3 @@ for pp = 2:4
     fprintf('done!\n');
 
 end
-%% PAIRWISE VOI SLOPE COMPARISONS ( some significant before FDR)
-pairedVOIs = combnk(1:nv,2);
-fdr_mask = nan(size(pairedVOIs))';
-
-for dd = 1:ndim
-    for vi = 1:size(pairedVOIs,1)
-        % coefStimLocs is niters x ndim x nCoefs x nv
-        s1 = squeeze(coefStimLocs(:,dd,1,pairedVOIs(vi,1)));
-        s2 = squeeze(squeeze(coefStimLocs(:,dd,1,pairedVOIs(vi,2))));
-        diff_slope = s1 - s2;
-        boot_ttest_slope(dd,vi) = 2*(min([mean(diff_slope < 0), ...
-            mean(diff_slope > 0)]));
-        
-        clear s1 s2 diff_slope
-    end
-end
-
-[~,fdr_mask] = fdr(boot_ttest_slope, 0.05);
-
-diffx = find(fdr_mask(1,:));
-fprintf('X encoding is significantly different in %s & %s\n', ...
-    VOIs{pairedVOIs(diffx,:)'});
-
-diffz = find(fdr_mask(2,:));
-fprintf('Z encoding is significantly different in %s & %s\n', ...
-    VOIs{pairedVOIs(diffz,:)'});
-disp(' ');
-ptmp = find(boot_ttest_slope(2,:) < .05);
-fprintf('Without FDR, Z encoding is different in %s & %s\n', ...
-    VOIs{pairedVOIs(ptmp,:)'});
-disp(boot_ttest_slope(2,ptmp)) % p values
-
-mean_diff_slope = arrayfun(@(vi) mean(squeeze(coefStimLocs(:,2,1,pairedVOIs(vi,1))-...
-    squeeze(coefStimLocs(:,2,1,pairedVOIs(vi,2))))), ptmp);
-ci_diff_slope = arrayfun(@(vi) prctile(squeeze(coefStimLocs(:,2,1,pairedVOIs(vi,1))-...
-    squeeze(coefStimLocs(:,2,1,pairedVOIs(vi,2)))), [2.5,97.5]), ptmp,...
-    'UniformOutput',0); 
-
-%% PAIRWISE ERROR COMPARISONS (bootstrap method, not significant)
-pairedVOIs = combnk(1:nv,2);
-fdr_maskErr = nan(size(pairedVOIs))';
-
-for dd = 1:ndim
-    for vi = 1:size(pairedVOIs,1)
-        % iterDiffLocs is niters x ndim x nCoefs x nv
-        s1 = mean(squeeze(iterDiffLocs(dd,:,pairedVOIs(vi,1),:)),1);
-        s2 = mean(squeeze(iterDiffLocs(dd,:,pairedVOIs(vi,2),:)),1);
-        diff_err = s1 - s2;
-        boot_err(dd,vi) = 2*(min([mean(diff_err < 0), ...
-            mean(diff_err > 0)]));
-        
-        clear s1 s2 diff_err
-    end
-end
-
-[~,fdr_maskErr] = fdr(boot_err, 0.05);
-
-diffx = find(fdr_maskErr(1,:));
-fprintf('X error is significantly different in %s & %s\n', ...
-    VOIs{pairedVOIs(diffx,:)'});
-
-diffz = find(fdr_maskErr(2,:));
-fprintf('Z error is significantly different in %s & %s\n', ...
-    VOIs{pairedVOIs(diffz,:)'});
-disp(' ');
-ptmp = find(boot_err(2,:) < .05);
-fprintf('Without FDR, Z error is different in %s & %s\n', ...
-    VOIs{pairedVOIs(ptmp,:)'});
-disp(boot_err(2,ptmp)) % p values
-
-mean_diff_err = arrayfun(@(vi) mean(mean(iterDiffLocs(2,:,pairedVOIs(vi,1),:)-...
-    iterDiffLocs(2,:,pairedVOIs(vi,2),:),2)), ptmp);
-ci_diff_err = arrayfun(@(vi) prctile(mean(iterDiffLocs(2,:,pairedVOIs(vi,1),:)-...
-    iterDiffLocs(2,:,pairedVOIs(vi,2),:),2),[2.5,97.5]), ptmp,...
-    'UniformOutput',0); 
-
