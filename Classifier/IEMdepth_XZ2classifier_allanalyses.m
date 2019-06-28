@@ -111,34 +111,6 @@ for aa=1:length(sigLevels)
     fdrThresh(aa,2) = p_fdr;
 end
 
-%% Perform the anova for X and Z position sepatately
-adat_x = squeeze(d_allsub(:,:,1))';
-adat_z = squeeze(d_allsub(:,:,2))';
-
-% Create a table storing the respones
-varNames = {'Y1','Y2','Y3','Y4','Y5','Y6','Y7','Y8','Y9'};
-factorNames = {'ROI'};
-within = table(VOIs(vuse)','VariableNames',factorNames);
-
-t_x = array2table(adat_x,'VariableNames',varNames);
-t_z = array2table(adat_z,'VariableNames',varNames);
-
-% fit the repeated measures model
-rm_x = fitrm(t_x,'Y1-Y9~1','WithinDesign',within);
-rm_z = fitrm(t_z,'Y1-Y9~1','WithinDesign',within);
-
-mauchly_tbl_x = mauchly(rm_x);
-mauchly_tbl_z = mauchly(rm_z);
-
-% run my repeated measures anova here
-[ranovatbl_x] = ranova(rm_x, 'WithinModel','ROI');
-[ranovatbl_z] = ranova(rm_z, 'WithinModel','ROI');
-
-% multiple comparisons
-mctable_x = multcompare(rm_x,'ROI');
-mctable_z = multcompare(rm_z,'ROI');
-
-
 %% Make the plot (Figure 2A)
 
 figure;hold all;

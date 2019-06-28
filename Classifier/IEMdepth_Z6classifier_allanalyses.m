@@ -201,7 +201,7 @@ for aa=1:length(sigLevels)
     
 end
 
-%% make plots of mean pairwise Z decoding (Figure 2B)
+%% make plots of mean pairwise Z decoding (Figure 2)
 
 figure;hold all;
 ylabel('d-prime');
@@ -240,134 +240,6 @@ end
 plot((1:nVOIs),astLocsEach(:,1),'o','Color','k','MarkerSize',markersize)
 plot((1:nVOIs),astLocsEach(:,2),'o','Color','k','MarkerFaceColor','k','MarkerSize',markersize)
            
-%% Performing a one-way RM anova on the table of mean d' scores (not significant)
-
-% switch from [nVOIs x nSubj] to [nSubj x nVOIs]
-adat = d_mean_allsub';
-
-% Create a table storing the respones
-varNames = {'Y1','Y2','Y3','Y4','Y5','Y6','Y7','Y8','Y9'};
-% create a table of all levels
-t = array2table(adat,'VariableNames',varNames);
-factorNames = {'ROI'};
-within = table(VOIs(vuse)','VariableNames',factorNames);
-
-% fit the repeated measures model
-rm = fitrm(t,'Y1-Y9~1','WithinDesign',within);
-
-% this tells us that the assumption of sphericity is violated, and we must
-% use the lower bound adjustment (last column of the rm output)
-mauchly_tbl = mauchly(rm);
-
-% run my repeated measures anova here
-[ranovatbl] = ranova(rm, 'WithinModel','ROI');
-
-% multiple comparisons
-mctable = multcompare(rm,'ROI');
-
-% each pairing is reported in both directions - look at only one direction
-posDiffs = mctable{:,3}>0 & mctable{:,5}<alpha;
-sigDiffs = mctable{posDiffs,[1,2]};
-
-%% get bootstrapped dist of d' for each ROI - averaging within position first.
-
-rs = 43456589;
-rng(rs);
-
-nPos = numel(unique(X(:,3)));
-nIter = 1000;
-% have to define sorder outside the parfot loop, otherwise the exact result
-% won't be reproducible because the parallelism will be different each
-% time.
-sorder = randsample(1:nSubj, nIter*length(subj), 1);
-sorder = reshape(sorder, [nIter, nSubj]);
-
-bootPerf = nan(length(vuse), nIter);
-parfor ii=1:nIter
-    thisorder = sorder(ii,:);
-    smallmat = nan(length(vuse), 1);
-    for vv=1:length(vuse)
-       mean_over_position = d_mean_allsub(vv,:);          
-       smallmat(vv) = mean(mean_over_position(thisorder));
-
-    end
-    bootPerf(:,ii) = smallmat;
-
-end
-
-%% make a plot of these distributions
-
-figure;hold all;
-% h(1) = subplot(2,2,1);
-violinplot(squeeze(bootPerf)',VOIs,...
-    'ShowData',false,'ShowMean',false,'ViolinColor',[0.8,0.8,0.8]);
-title('Mean pairwise Z decoding, bootstrapped distributions');
-%% use the bootstrapped distributions to perform a non-parametric t-test.
-
-pairedVOIs = combnk(1:nVOIs,2);
-boot_ttest_perf = nan(size(pairedVOIs,1), 1);
-boot_means = nan(size(pairedVOIs,1), 2);
-boot_diffs = nan(size(pairedVOIs,1), 1);
-boot_diff_cis = nan(size(pairedVOIs,1), 2);
-for vi = 1:size(pairedVOIs,1)
-
-    s1 = squeeze(bootPerf(pairedVOIs(vi,1), :));
-    s2 = squeeze(bootPerf(pairedVOIs(vi,2), :));
-    all_diffs = s1 - s2;
-    boot_means(vi,:) = [mean(s1), mean(s2)];
-    boot_diffs(vi,:) = mean(all_diffs);
-    boot_diff_cis(vi,:) = prctile(all_diffs, [2.5, 97.5]);
-    boot_ttest_perf(vi) = 2*(min([mean(all_diffs < 0), ...
-        mean(all_diffs > 0)]));
-
-end
-
-[~,fdr_mask] = fdr(boot_ttest_perf, 0.01);
-
-diffz = find(fdr_mask);
-fprintf('average Z decoding is significantly different in %s & %s\n', ...
-    VOIs{vuse(pairedVOIs(diffz,:)')});
-
-vtab = cell2table(VOIs(vuse(pairedVOIs(diffz,:))), 'VariableNames',{'ROI1','ROI2'});
-difftab = [vtab, table(boot_means(diffz,1),boot_means(diffz,2), ...
-    boot_diffs(diffz), ...
-    boot_diff_cis(diffz,1), boot_diff_cis(diffz,2),...
-    boot_ttest_perf(diffz),'VariableNames',...
-    {'mean1','mean2','diff','cidifflow','cidiffhigh','p'}) ]
-
-%% do all the pairwise comparisons with a parametric paired t-test.
-
-pairedVOIs = combnk(1:nVOIs,2);
-ttest_t = nan(size(pairedVOIs,1), 1);
-ttest_p = nan(size(pairedVOIs,1), 1);
-pair_means = nan(size(VOIs,1), 2);
-
-for vi = 1:size(pairedVOIs,1)
-
-    s1 = squeeze(d_allsub(pairedVOIs(vi,1),:,:));
-%     s1 = s1(:);
-    s2 = squeeze(d_allsub(pairedVOIs(vi,2),:,:));
-
-    
-    
-    [h,p,ci,stats] = ttest(mean(s1,2),mean(s2,2));
-    pair_means(vi,:) = [mean(s1(:)), mean(s2(:))];
-    ttest_t(vi) = stats.tstat;
-    ttest_p(vi) = p;
-
-end
-
-[~,fdr_mask] = fdr(ttest_p, 0.01);
-
-diffz = find(fdr_mask);
-fprintf('average Z decoding is significantly different in %s & %s\n', ...
-    VOIs{vuse(pairedVOIs(diffz,:)')});
-
-vtab = cell2table(VOIs(vuse(pairedVOIs(diffz,:))), 'VariableNames',{'ROI1','ROI2'});
-difftab = [vtab, table(pair_means(diffz,1),pair_means(diffz,2), ...
-    ttest_t(diffz),...
-    ttest_p(diffz),'VariableNames',...
-    {'mean1','mean2','t','p'}) ]
 
 
 %% fit slopes/intercepts to the d'/disparity diff relationship
@@ -507,28 +379,7 @@ for aa=1:length(sigLevels)
     fdrThresh(aa,1) = p_fdr;
 end
 
-%% Perform all pairwise slope comparisons b/w ROIs
-pList=[];
-vCompList=[];
-ii=0;
-meanList=[];
 
-for vv1=1:nVOIs
-    for vv2 = vv1+1:nVOIs
-            
-        set1 = allslopes(vv1,:)';
-        set2 = allslopes(vv2,:)';
-
-        p = min([mean(set1<set2),mean(set2<set1)]);
-        
-        pList = cat(1,pList,p);
-        meanList=cat(1,meanList,[mean(allslopes(vv1,:)),mean(allslopes(vv2,:))]);
-        vCompList = cat(1,vCompList,[VOIs(vuse(vv1)),VOIs(vuse(vv2))]);              
-    end
-end
-
-[fdrThreshBetween,pListCorr] = fdr(pList,0.01);
-mctable = table(vCompList,meanList,pList,pListCorr);
 
 %% Make RSA plot (extended data, Figure 3-1)
  
